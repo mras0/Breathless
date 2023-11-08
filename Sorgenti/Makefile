@@ -22,7 +22,7 @@ AFLAGS = -Fhunk -phxass -sd -extsd -sdreg=5 -linedebug -nowarn=62 -quiet
 AFLAGS += -I$(PREFIX)/m68k-amigaos/ndk-include
 AFLAGS += -I$(PREFIX)/m68k-amigaos/ndk/include
 AFLAGS += -DCHEATS
-#AFLAGS += -DDEVMODE
+AFLAGS += -DDEVMODE
 
 AFLAGS060 = $(AFLAGS) -m68060
 

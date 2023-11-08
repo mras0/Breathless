@@ -189,6 +189,8 @@ VBnomusicp
 
 ;***********************************************************************
 
+                DEVPAD
+
 		cnop	0,4
 
 VBint		ds.b	IS_SIZE	;VBlank interrupt server structure

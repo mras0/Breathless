@@ -433,6 +433,16 @@ P61_gene
 
 	lea	P61_temp0-P61_cn(a3),a1
 	lea	P61_emptysample-P61_cn(a3),a2
+		IFD	DEVMODE
+		; XXX for uaedbg
+		xref nullbytes
+        move.l  nullbytes,a4
+        move.l  a4,6(a2)
+        move.l  a4,$dff0b0
+        move.l  a4,$dff0c0
+        move.l  a4,$dff0d0
+        move.l  a4,$dff0e0
+        ENDC
 	moveq	#channels-1,d0
 .loo	move.l	a2,P61_Sample(a1)		;A
 	lea	Channel_Block_SIZE(a1),a1	;A
@@ -2525,6 +2535,10 @@ SRnoch						;A
 	nop
 	rte
 	endc
+
+                IFD DEVMODE
+                ds.l    4 ; XXX For uaedbg
+                ENDC
 
 P61_temp0	dcb.b	Channel_Block_SIZE-2
 		dc	1

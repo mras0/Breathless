@@ -887,6 +887,7 @@ c2ploopx
 
 		rts
 
+                cnop    0,4
 
 rowoffset	dc.l	0	;Offset di riga
 

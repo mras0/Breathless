@@ -1225,6 +1225,8 @@ MTFnofloor
 
 		xdef	OTablePun
 
+                DEVPAD
+
 OTablePun	ds.l	WINDOW_MAX_HEIGHT<<1	;Lista di pun. a liste di trattini orizzontali
 
 

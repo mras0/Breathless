@@ -52,10 +52,21 @@ entry
                 cmp.w   #37,LIB_VERSION(a6)
                 blo     .error
                 sub.l   a2,a2           ; a2 = stack swap pointer
-                move.l  ThisTask(a6),a0
+                sub.l   a3,a3           ; a3 = wb message
+
+                move.l  ThisTask(a6),a4
+                tst.l   pr_CLI(a4)
+                bne     .notwb
+                ; Get startup message
+                lea     pr_MsgPort(a4),a0
+                jsr     _LVOWaitPort(a6)
+                lea     pr_MsgPort(a4),a0
+                jsr     _LVOGetMsg(a6)
+                move.l  d0,a3
+.notwb:
                 move.l  #STACK_SIZE+12,d0
-                move.l  TC_SPUPPER(a0),d1
-                sub.l   TC_SPLOWER(a0),d1
+                move.l  TC_SPUPPER(a4),d1
+                sub.l   TC_SPLOWER(a4),d1
                 cmp.l   d0,d1
                 bhs     .stackok
                 moveq   #1,d1
@@ -71,15 +82,23 @@ entry
                 move.l  d0,8(a0)
                 jsr     _LVOStackSwap(a6)
 .stackok:
-                move.l  a2,-(sp)
+                movem.l  a2/a3,-(sp)
                 bsr     _start
-                move.l  (sp)+,d2
-                beq     .out
+                movem.l (sp)+,d2/a3
+                move.l  $4.w,a6
+                tst.l   d2
+                beq     .nostackswap
                 move.l  d2,a0
                 jsr     _LVOStackSwap(a6)
                 move.l  d2,a1
                 move.l  #STACK_SIZE+12,d0
                 jsr     _LVOFreeMem(a6)
+.nostackswap:
+                tst.l   a3
+                beq     .out
+                jsr     _LVOForbid(a6)
+                move.l  a3,a1
+                jsr     _LVOReplyMsg(a6)
 .out:
                 moveq   #0,d0
                 rts

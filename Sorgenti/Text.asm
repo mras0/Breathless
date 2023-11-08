@@ -592,6 +592,8 @@ SCPend
 		movem.l	(sp)+,d0-d7/a0-a6
 		rts
 
+                DEVPAD
+
 charbuffer	ds.w	12
 
 ;* Stampa numeri a video in esadecimale ******************************

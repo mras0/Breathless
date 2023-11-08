@@ -324,6 +324,14 @@ CEND	macro	ucl
 	endm
 
 
+DEVPAD  MACRO
+        ; Pad to avoid spurious errors when running uaedbg
+        IFD     DEVMODE
+        ds.l    1
+        ENDC
+        ENDM
+
+
 ;****************************************************************************
 ;
 ;	vtable  una tabella contenente WINDOW_WIDTH strutture di
