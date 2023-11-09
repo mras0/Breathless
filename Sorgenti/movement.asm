@@ -261,7 +261,7 @@ DMludspeedok
 		bmi.s	DMlowerlook
 
 DMraiselook	add.l	d2,d0
-		cmp.w	#72,d0		;old=3
+		cmp.l	#72,d0		;old=3
 		bgt.s	DMnoralo1
 		bra.s	DMracalc
 
@@ -271,7 +271,7 @@ DMnoralo2	moveq	#-72,d0
 		bra.s	DMracalc
 
 DMlowerlook	add.l	d2,d0
-		cmp.w	#-72,d0		;old=3
+		cmp.l	#-72,d0		;old=3
 		blt.s	DMnoralo2
 DMracalc	move.l	d0,CLookHeightNum(a5)
 		move.l	LookHeightRatio(a5),d1
@@ -286,17 +286,26 @@ DMnoralo
 
 	;*** Gestione accelerazione per la rotazione
 
-		move.w	mousepos(a5),d2
-		beq.s	DMnomouse
-		clr.w	mousepos(a5)
 		tst.w	ActiveControl(a5)
 		beq.s	DMnomouse
+
+		move.w	mousex(a5),d2
+		beq.s	DMnomousex
+		clr.w	mousex(a5)
 		muls.w	MouseSensitivity(a5),d2
 		lsr.l	#2,d2
 		add.w	CPlayerHeading(a5),d2
 		and.w	#2047,d2
 		move.w	d2,CPlayerHeading(a5)
-		bra.s	DMokmouse
+DMnomousex
+                move.w  mousey(a5),d2
+                beq     DMnomouse
+                clr.w   mousey(a5)
+		muls.w	MouseSensitivity(a5),d2
+                neg.l   d2
+                asr.l   #3,d2
+                bra     DMludspeedok
+
 
 DMnomouse	move.w	PlayerRotAccel(a5),d1
 		move.w	PlayerRotSpeed(a5),d2
@@ -1438,11 +1447,10 @@ PlayerAccel		ds.w	1	;Accelerazione camminata/corsa player
 PlayerRotAccel		ds.w	1	;Accelerazione rotazione player
 
 
-	xdef	mousepos
+	xdef	mousex,mousey
 
-mousepos	ds.w	1	;Posizione mouse
-
-		ds.w	1	;Usato per allineare
+mousex	        ds.w	1	;Posizione mouse
+mousey          ds.w    1
 
 
 	xdef	joyup,joydown,joyleft,joyright

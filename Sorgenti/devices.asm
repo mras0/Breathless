@@ -16,7 +16,7 @@
 		xref	joyfire,joyfireP
 		xref	sideleft,sideright
 		xref	speedup,sidemove,lookupdown
-		xref	mousepos
+		xref	mousex,mousey
 		xref	pause
 		xref	ScreenActive
 		xref	myInputEvent,ResetMousePos
@@ -224,7 +224,8 @@ IHCloop		tst.l	a0
 		move.w	ie_Qualifier(a0),d0
 		btst	#IEQUALIFIERB_RELATIVEMOUSE,d0
 		beq.s	IHCnorelmouse
-		move.w	ie_X(a0),mousepos(a5)
+		move.w	ie_X(a0),mousex(a5)
+		move.w	ie_Y(a0),mousey(a5)
 IHCnorelmouse	btst	#IEQUALIFIERB_RBUTTON,d0
 		beq.s	IHCnolbutton
 		move.w	SwitchKey(pc),d0
