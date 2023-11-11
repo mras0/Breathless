@@ -449,7 +449,7 @@ TMnotranseffect
 		bsr	ClearCurrentBitmap
 TMnoclear
 
-                btst.b  #0,DevFlags+3(a5)
+                FLAGOP  btst,SHOWFPS
                 beq     TMnoframerate
 
                 IFD DEVMODE
@@ -790,10 +790,9 @@ KIno2		cmp.w	#($5a+$80),d0		;Premuto tasto '[' Tast.Num.?
 		cmp.w	#($45+$80),d0		;Premuto tasto Esc ?
 		beq	KIescape
 		cmp.w	#($57+$80),d0		;F8
-                bne     .NotF7
-                bchg.b  #0,DevFlags+3(a5)
-                rts
-.NotF7
+                beq     KIfps
+                cmp.w   #($15+$80),d0           ;y
+                beq     KIinvertmousey
                 IFD     CHEATS
 		cmp.w	#($58+$80),d0		;Premuto tasto F9 ?
 		beq	KIcheat
@@ -812,7 +811,10 @@ KIwp		cmp.w	#($19+$80),d0		;Premuto tasto 'p' ?
 		beq	KIpause
 		rts
 
-
+KIfps           FLAGOP  bchg,SHOWFPS
+                rts
+KIinvertmousey  FLAGOP  bchg,INVERTMOUSEY
+                rts
 
 	;***** Cambia armi
 
@@ -1010,12 +1012,11 @@ KIjumpgame
 		clr.w	CurrentLevel(a5)
 		rts
 
-                xref    Invincible
 KIinvincible
-                lea     InvMsg(pc),a0
-                not.b   Invincible(a5)
-                bne     ShowCheatMessage
                 lea     NoInvMsg(pc),a0
+                FLAGOP  bchg,INVINCIBLE
+                bne     ShowCheatMessage
+                lea     InvMsg(pc),a0
                 bra     ShowCheatMessage
 
 CheatMsg        dc.b    "CHEATING",-2,127,-1,0,0
@@ -2389,7 +2390,8 @@ GlobalSound8	ds.l	1	;Pun. al global sound 8
 GlobalSound9	ds.l	1	;Pun. al global sound 9
 GlobalSound10	ds.l	1	;Pun. al global sound 10
 
-DevFlags        ds.l    1
+        xdef    GameFlags
+GameFlags       ds.l    1
 
 		cnop	0,4
 

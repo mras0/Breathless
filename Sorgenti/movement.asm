@@ -298,11 +298,15 @@ DMnoralo
 		and.w	#2047,d2
 		move.w	d2,CPlayerHeading(a5)
 DMnomousex
+                ; Mouse look
                 move.w  mousey(a5),d2
                 beq     DMnomouse
                 clr.w   mousey(a5)
 		muls.w	MouseSensitivity(a5),d2
+                FLAGOP  btst,INVERTMOUSEY
+                bne     DMinv
                 neg.l   d2
+DMinv
                 asr.l   #3,d2
                 bra     DMludspeedok
 

@@ -37,7 +37,7 @@
 PlayerHit	movem.l	d0-d3/a0-a1/a6,-(sp)
 
                 IFD     CHEATS
-                tst.b   Invincible(a5)
+                FLAGOP  btst,INVINCIBLE
                 bne     PHout
 
                 ENDC
@@ -749,11 +749,6 @@ PlayerShields	ds.w	1	;Scudi del player
 PlayerEnergy	ds.w	1	;Energia del player
 PlayerCredits	ds.l	1	;Crediti del player
 PlayerScore	ds.l	1	;Punteggio
-
-                IFD     CHEATS
-                xdef    Invincible
-Invincible      ds.b    1
-                ENDC
 
 		xdef	GreenKey,YellowKey,RedKey,BlueKey
 

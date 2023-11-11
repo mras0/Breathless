@@ -331,6 +331,15 @@ DEVPAD  MACRO
         ENDC
         ENDM
 
+        xref GameFlags
+FLAGOP  MACRO
+        \1.b    #(31-(FLAG_\2))&7,GameFlags+((31-(FLAG_\2))>>3)(a5)
+        ENDM
+
+FLAG_SHOWFPS            EQU     0
+FLAG_INVINCIBLE         EQU     1
+FLAG_INVERTMOUSEY       EQU     2
+
 
 ;****************************************************************************
 ;
