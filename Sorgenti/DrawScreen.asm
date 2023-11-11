@@ -85,6 +85,50 @@ MFWINNERLOOP    MACRO
                 dbra	d6,.loop\@
                 ENDM
 
+MTCINNERLOOP    MACRO
+                ;d0 = U
+                ;d1 = V
+                ;d2 = dUdX
+                ;d3 = dVdX
+                ;d4 = 0
+                ;d5 = Free
+		;d6 = $0fc0_0000 (63*64<<16)
+		;d7 = $003f_ffff
+                ;a3 = Lighting tab
+                ;a4 = Chunkybuf
+                ;a6 = Texture (64*64)
+
+                IFEQ    __CPU-68060
+                and.l	d7,d0
+		move.l	d1,d5
+		and.l	d6,d5
+		or.l	d0,d5
+		swap	d5
+.loop\@         move.b	(a6,d5.w),d4
+		add.l	d2,d0
+		add.l	d3,d1
+                and.l	d7,d0
+		move.l	d1,d5
+		and.l	d6,d5
+		or.l	d0,d5
+		swap	d5
+		move.b	(a3,d4.l),(a4)+
+                subq.w  #1,d6
+                bpl     .loop\@
+
+                ELSE ; 060
+.loop\@		and.l	d7,d0
+		move.l	d1,d5
+		and.l	d6,d5
+		or.l	d0,d5
+		swap	d5
+		move.b	(a6,d5.w),d4
+		move.b	(a3,d4.w),(a4)+		;Write Pixel
+		add.l	d2,d0			;d0+=DU
+		add.l	d3,d1			;d1+=DV
+		dbra	d6,.loop\@
+                ENDC    ; 060
+                ENDM
 
 StretchUpperTexture	MACRO
 
@@ -1036,17 +1080,7 @@ MTClitout
 		lsl.l	#6,d3
 		clr.l	d4
 
-                ; TODO: See if this can be optimized
-MTCfill		and.l	d7,d0
-		move.l	d1,d5
-		and.l	d6,d5
-		or.l	d0,d5
-		swap	d5
-		move.b	(a6,d5.w),d4
-		move.b	(a3,d4.w),(a4)+		;Write Pixel
-		add.l	d2,d0			;d0+=DU
-		add.l	d3,d1			;d1+=DV
-		dbra	d6,MTCfill
+                MTCINNERLOOP
 
 		lea	-12(a1),a1
 		bra	MTCloopx
@@ -1168,16 +1202,7 @@ MTFlitout
 		lsl.l	#6,d3
 		clr.l	d4
 
-MTFfill		and.l	d7,d0
-		move.l	d1,d5
-		and.l	d6,d5
-		or.l	d0,d5
-		swap	d5
-		move.b	(a6,d5.w),d4
-		move.b	(a3,d4.w),(a4)+		;Write Pixel
-		add.l	d2,d0			;d0+=DU
-		add.l	d3,d1			;d1+=DV
-		dbra	d6,MTFfill
+                MTCINNERLOOP
 
 		lea	-12(a1),a1
 		bra	MTFloopx
