@@ -457,7 +457,8 @@ TMnoclear
 		jsr	GetTime
                 move.l  d0,d3
 
-                move.w  #320-8*10,d0
+                move.l  window_width(a5),d0
+                sub.w   #8*10,d0
                 moveq   #0,d1
 
                 ; Ray casting time
@@ -505,7 +506,8 @@ TMnoclear
                 beq     TMnoframerate
 		move.l	#1000000*100,d2
 		divu.l	d0,d2
-                move.w  #320-8*10,d0
+                move.l  window_width(a5),d0
+                sub.w   #8*10,d0
                 moveq   #0,d1
                 jsr     PrintNumChunky
 
