@@ -226,7 +226,12 @@ IHCloop		tst.l	a0
 		beq.s	IHCnorelmouse
 		move.w	ie_X(a0),mousex(a5)
 		move.w	ie_Y(a0),mousey(a5)
-IHCnorelmouse	btst	#IEQUALIFIERB_RBUTTON,d0
+IHCnorelmouse   btst    #IEQUALIFIERB_LEFTBUTTON,d0
+                beq.s   IHnolmb
+		addq.w	#1,joyfire(a5)
+		addq.w	#1,joyfireP(a5)
+IHnolmb
+                btst	#IEQUALIFIERB_RBUTTON,d0
 		beq.s	IHCnolbutton
 		move.w	SwitchKey(pc),d0
 		move.w	d0,(a1,d2.l)		;Memorizza tasto premuto

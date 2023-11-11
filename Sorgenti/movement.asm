@@ -1028,10 +1028,9 @@ ReadJoy:
 		sne	joydown(a5)
 		btst	#9,d0
 		sne	joyup(a5)
-		move.b	$bfe001,d0	;Test fire button
-		and.b	#%11000000,d0
-		cmp.b	#%11000000,d0
-		beq.s	RJnofire	; Salta se non premuto
+		btst.b	#7,$bfe001	;Test fire button
+                ; Used to check for mouse button here as well
+		bne.s	RJnofire	; Salta se non premuto
 		tst.w	joyfireP(a5)	;Test se fire precedentemente premuto
 		bne.s	RJout
 		addq.w	#1,joyfire(a5)
