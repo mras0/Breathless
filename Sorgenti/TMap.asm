@@ -19,6 +19,7 @@
 	include 'MulDiv64.i'
 ;	include 'Picasso/Picasso'
 	include 'TMap.i'
+        include 'graphics/gfxbase.i'
 
 ;	include	'misc/easystart.i'
 
@@ -48,8 +49,18 @@
 STACK_SIZE=16*1024-20 ; 8K seems to work, but let's play it safe
 
 entry
+		GETDBASE ; Let's get this out of the way (move.l ....,var is optimized to a5 relative so be careful)
+
+                ; Clear small data BSS
+                move.l  #__BSSBAS,a2
+                move.l  #__BSSLEN,d0
+		subq.w	#1,d0
+clrbss		clr.l	(a2)+
+		dbra	d0,clrbss
+
                 move.l  $4.w,a6
-                cmp.w   #37,LIB_VERSION(a6)
+                move.l  #ErrMsgOSVer,ErrorMessage(a5)
+                cmp.w   #39,LIB_VERSION(a6) ; ChangeVPBitMap etc requires v39
                 blo     .error
                 sub.l   a2,a2           ; a2 = stack swap pointer
                 sub.l   a3,a3           ; a3 = wb message
@@ -70,6 +81,7 @@ entry
                 cmp.l   d0,d1
                 bhs     .stackok
                 moveq   #1,d1
+                move.l  #ErrMsgAlloc,ErrorMessage(a5)
                 jsr     _LVOAllocMem(a6)
                 tst.l   d0
                 beq     .error
@@ -103,7 +115,27 @@ entry
                 moveq   #0,d0
                 rts
 .error:
+                bsr     ShowError
                 moveq   #-1,d0
+                rts
+
+ShowError
+		movem.l	d0-d7/a0-a6,-(sp)
+                lea     IntuitionName(pc),a1
+                move.l  $4.w,a6
+                jsr     _LVOOldOpenLibrary(a6)
+                tst.l   d0
+                beq     .out
+                move.l  d0,a6
+                move.l  ErrorMessage(a5),a0
+                moveq   #0,d1
+                move.w  (a0)+,d1
+                jsr     _LVODisplayAlert(a6)
+                move.l  a6,a1
+                move.l  $4.w,a6
+                jsr     _LVOCloseLibrary(a6)
+.out:
+		movem.l	(sp)+,d0-d7/a0-a6
                 rts
 
 _start
@@ -115,17 +147,7 @@ _start
                 fmove.s #$37800000,fp7  ; 1/65536
                 ENDC
 
-		GETDBASE
-
-
-                ; Clear small data BSS
-                ; Since it's all BSS for now..
-                move.l  #__BSSBAS,a0
-                move.l  #__BSSLEN,d0
-
-		subq.w	#1,d0
-clrbss		clr.l	(a0)+
-		dbra	d0,clrbss
+                move.l  #ErrMsgGeneric,ErrorMessage(a5)
 
 		move.l	4,execbase(a5)
 ;		move.l	sp,savesp(a5)
@@ -154,6 +176,7 @@ clrbss		clr.l	(a0)+
 		OPENLIB	IntuitionName(pc),intuitionbase
 
 
+                move.l  #ErrMsgAlloc,ErrorMessage(a5)
 		ALLOCMEMORY #ie_SIZEOF,MEMF_PUBLIC|MEMF_CLEAR,myInputEvent
 		ALLOCMEMORY #CHUNKY_SIZE,MEMF_CLEAR,FakeChunkyPun
 		ALLOCMEMORY #MAPMEM_SIZE,MEMF_CLEAR,MapPun
@@ -169,6 +192,8 @@ clrbss		clr.l	(a0)+
 		bsr	OpenAll		;Apre e inizializza tutte le risorse
 		tst.l	d0		;Tutto ok ?
 		bne	ErrorQuit
+
+                move.l  #ErrMsgLoad,ErrorMessage(a5)
 
 		jsr	CheckDisk	;Test se il caricamento avviene da floppy
 
@@ -191,6 +216,8 @@ clrbss		clr.l	(a0)+
 		jsr	ReadSoundsDir	;Legge Sounds Dir
 		tst.b	d0
 		bne.s	ErrorQuit
+
+                move.l  #ErrMsgUnknown,ErrorMessage(a5)
 
 	;-----------------------------
 
@@ -216,8 +243,8 @@ clrbss		clr.l	(a0)+
 
 ErrorQuit
 		bsr	CleanupResources
+                bsr     ShowError
 		movem.l	(sp)+,d0-d7/a0-a6
-		moveq	#30,d0
 		rts
 
 ;********************************************************************
@@ -230,6 +257,7 @@ OpenAll
 		tst.l	d0			; error?
 		bne	OAerror
 OAopenscrok
+                move.l  #ErrMsgGeneric,ErrorMessage(a5)
 
 		move.l	screen_bitmap1(a5),a0
 		lea	bm_Planes(a0),a0
@@ -445,7 +473,16 @@ TurnOffMousePointer
 ;********************************************************************
 
 OpenAgaScreen
+                move.l  #ErrMsgAGA,ErrorMessage(a5)
+                move.l  #SETCHIPREV_AA,d0
+                move.l  d0,d2
+                GFXBASE
+                CALLSYS SetChipRev
+                and.l   d2,d0
+                cmp.l   d2,d0
+                bne     OAGAerror
 
+                move.l  #ErrMsgScreen,ErrorMessage(a5)
 		INTUITIONBASE
 		CALLSYS	ViewAddress
 		move.l	d0,IntuitionView(a5)
@@ -1217,6 +1254,30 @@ PaletteRGB32	dc.l	$01000000
 		dc.l	0
 
 ;***************************************************************************
+
+ERRMSG          MACRO
+                dc.w    24                      ; Height
+                dc.w    320-4*(.End\@-.Start\@) ; X
+                dc.b    12                      ; Y
+.Start\@
+                dc.b    \1
+.End\@
+                dc.b    0       ; NUL-terminator
+                dc.b    0       ; Continuation byte
+                even
+                ENDM
+
+
+ErrMsgGeneric   ERRMSG  "Resource allocation failed"
+ErrMsgOSVer     ERRMSG  "AmigaOS 3.0 or later required"
+ErrMsgAlloc     ERRMSG  "Memory allocation failed"
+ErrMsgAGA       ERRMSG  "AGA required"
+ErrMsgScreen    ERRMSG  "Failed to open screen"
+ErrMsgLoad      ERRMSG  "Failed to load data"
+ErrMsgUnknown   ERRMSG  "Unknown error occured"
+
+                even
+;***************************************************************************
 	section	TABLES,bss
 
 	xdef stupid
@@ -1365,6 +1426,7 @@ sigbit2		ds.l	1	;Used from c2p8
 DBufSafePort	ds.l	1
 DBufDispPort	ds.l	1
 
+ErrorMessage    ds.l    1
 
 		xdef	Palette,RedPalette
 
