@@ -7,21 +7,6 @@
                 xref RTGFlag,cgxbase
                 xref panel_bitmap
 
-;
-; Parameters for LockBitMapTagList()
-;
-
-LBMI_WIDTH              EQU     ($84001001)
-LBMI_HEIGHT             EQU     ($84001002)
-LBMI_DEPTH              EQU     ($84001003)
-LBMI_PIXFMT             EQU     ($84001004)
-LBMI_BYTESPERPIX        EQU     ($84001005)
-LBMI_BYTESPERROW        EQU     ($84001006)
-LBMI_BASEADDRESS        EQU     ($84001007)
-
-_LVOLockBitMapTagList   EQU     -168    ; APTR LockBitMapTagList(APTR BitMap, struct TagItem * TagList) (a0,a1)
-_LVOUnLockBitMap        EQU     -174    ; void UnLockBitMap(APTR Handle) (a0)
-
 ; void __asm c2p8_init (register __a0 UBYTE *chunky,	// pointer to chunky data
 ;			register __a1 ULONG mode,	// conversion mode
 ;			register __d0 ULONG signals1,	// 1 << sigbit1
@@ -112,7 +97,7 @@ rtg:
         jsr     _LVOLockBitMapTagList(a6)
         tst.l   d0
         beq     .out
-        ; Preserve d0!
+        ; Preserve d0! for unlock
 
         move.l  bmData(pc),a1
         move.l  bmBytesPerRow(pc),d1

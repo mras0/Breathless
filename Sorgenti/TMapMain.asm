@@ -1758,54 +1758,109 @@ CPHout
 		xdef	ClearCurrentBitmap
 
 ClearCurrentBitmap
-                rts     ; XXX TEMP 
-
 		lea	background(pc),a1
 		move.l	CurrentBitmap(a5),a3
+                tst.b   RTGFlag(a5)
+                beq     .aga
+
+                movem.l a6,-(sp)
+                move.l  a1,a2                   ; a2 = background
+                sub.l   #bm_Planes,a3           ; a3 = current BitMap*
+                GFXBASE
+                sub.l   #bm_SIZEOF,sp
+                move.l  sp,a0
+                moveq   #8,d0
+                move.l  #128,d1
+                move.l  #128,d2
+                jsr     _LVOInitBitMap(a6)
+                lea     bm_Planes(sp),a0
+                rept    8
+                move.l  a2,(a0)+
+                add.l   #128*128/8,a2
+                endr
+
+                moveq   #0,d3
+.y:
+                moveq   #0,d2
+.x:
+                movem.l d2/d3,-(sp)
+                lea     8(sp),a0        ; SrcBitMap
+                moveq   #0,d0           ; SrcX
+                moveq   #0,d1           ; SrcY
+                move.l  a3,a1           ; DstBitMap
+                ; d2/d3 = DstX/DstY
+                move.w  bm_BytesPerRow(a3),d4
+                sub.w   d2,d4
+                cmp.w   #128,d4
+                bls     .widthok
+                move.w  #128,d4
+.widthok
+                move.w  bm_Rows(a3),d5
+                sub.w   d3,d5
+                cmp.w   #128,d5
+                bls     .heightok
+                move.w  #128,d5
+.heightok
+                move.w  #$c0,d6         ; Minterm
+                moveq   #-1,d7          ; Mask
+                sub.l   a2,a2           ; TempA
+                jsr     _LVOBltBitMap(a6)
+                movem.l (sp)+,d2/d3
+                add.w   #128,d2
+                cmp.w   bm_BytesPerRow(a3),d2
+                blo     .x
+                add.w   #128,d3
+                cmp.w   bm_Rows(a3),d3
+                blo     .y
+
+                add.l   #bm_SIZEOF,sp
+                movem.l (sp)+,a6
+                rts
+.aga
 		moveq	#7,d6		;d6=contatore bitplanes
 CBclearloop0	move.l	(a3)+,a0
-		lea	5120(a0),a2
+		lea	5120(a0),a2     ;128*SCREEN_WIDTH/8
 		move.w	#71,d7
 CBclearloop1	move.l	(a1)+,d0
 		move.l	(a1)+,d1
 		move.l	(a1)+,d2
 		move.l	(a1)+,d3
-		move.l	d0,(a0)+
-		move.l	d1,(a0)+
-		move.l	d2,(a0)+
-		move.l	d3,(a0)+
-		move.l	d0,(a0)+
-		move.l	d1,(a0)+
-		move.l	d2,(a0)+
-		move.l	d3,(a0)+
-		move.l	d0,(a0)+
-		move.l	d1,(a0)+
-		move.l	d0,(a2)+
-		move.l	d1,(a2)+
-		move.l	d2,(a2)+
-		move.l	d3,(a2)+
-		move.l	d0,(a2)+
-		move.l	d1,(a2)+
-		move.l	d2,(a2)+
-		move.l	d3,(a2)+
-		move.l	d0,(a2)+
-		move.l	d1,(a2)+
+		move.l	d0,(a0)+        ;0
+		move.l	d1,(a0)+        ;1
+		move.l	d2,(a0)+        ;2
+		move.l	d3,(a0)+        ;3
+		move.l	d0,(a0)+        ;4
+		move.l	d1,(a0)+        ;5
+		move.l	d2,(a0)+        ;6
+		move.l	d3,(a0)+        ;7
+		move.l	d0,(a0)+        ;8
+		move.l	d1,(a0)+        ;9
+		move.l	d0,(a2)+        ;0
+		move.l	d1,(a2)+        ;1
+		move.l	d2,(a2)+        ;2
+		move.l	d3,(a2)+        ;3
+		move.l	d0,(a2)+        ;4
+		move.l	d1,(a2)+        ;5
+		move.l	d2,(a2)+        ;6
+		move.l	d3,(a2)+        ;7
+		move.l	d0,(a2)+        ;8
+		move.l	d1,(a2)+        ;9
 		dbra	d7,CBclearloop1
 		move.w	#55,d7
 CBclearloop2	move.l	(a1)+,d0
 		move.l	(a1)+,d1
 		move.l	(a1)+,d2
 		move.l	(a1)+,d3
-		move.l	d0,(a0)+
-		move.l	d1,(a0)+
-		move.l	d2,(a0)+
-		move.l	d3,(a0)+
-		move.l	d0,(a0)+
-		move.l	d1,(a0)+
-		move.l	d2,(a0)+
-		move.l	d3,(a0)+
-		move.l	d0,(a0)+
-		move.l	d1,(a0)+
+		move.l	d0,(a0)+        ;0
+		move.l	d1,(a0)+        ;1
+		move.l	d2,(a0)+        ;2
+		move.l	d3,(a0)+        ;3
+		move.l	d0,(a0)+        ;4
+		move.l	d1,(a0)+        ;5
+		move.l	d2,(a0)+        ;6
+		move.l	d3,(a0)+        ;7
+		move.l	d0,(a0)+        ;8
+		move.l	d1,(a0)+        ;9
 		dbra	d7,CBclearloop2
 		dbra	d6,CBclearloop0
 
