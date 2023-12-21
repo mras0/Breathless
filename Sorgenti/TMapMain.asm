@@ -392,7 +392,10 @@ TMterm		jsr	Terminal
 		move.w	#-1,PlayerBuyWeapon(a5)
 		bsr	ChangeWeapon
 		bra.s	TMnopause
-TMsmap		jsr	MapMode
+TMsmap
+                tst.b   RTGFlag(a5)             ; XXX MapMode doesn't work with RTG yet
+                bne     TMnopause
+                jsr	MapMode
 TMnopause
 
 		move.b	ScreenActive(a5),d0
