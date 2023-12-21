@@ -486,6 +486,7 @@ OpenAgaScreen
                 ;move.l  #PAL_MONITOR_ID,d0
                 ;move.l  #$50011000,d0   ; UAEGFX:320x240
                 move.l  #$50091000,d0   ; UAEGFX:320x256
+                ;move.l  #$50191000,d0   ; PISTORM:320x256
                 move.l  d0,did_tag1+4
                 move.l  d0,did_tag2+4
 

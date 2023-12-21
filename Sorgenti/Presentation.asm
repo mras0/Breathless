@@ -48,6 +48,8 @@
 		xref	LevelCodeOut
 		xref	TurnOffSprites,TurnOnSprites
 
+                xref    RTGShowPic
+
 ;****************************************************************************
 ;* Routine di presentazione
 
@@ -201,9 +203,6 @@ PLnocred
 		xdef	LoadingScreen
 
 LoadingScreen
-                ; XXX TEMP
-                rts
-
 		move.w	#-1,ActualScr(a5)
 
 		move.l	d4,-(sp)
@@ -236,19 +235,13 @@ LSlmodnook
 
 		;*** Cancella schermi
 
-		lea	planes_bitmap1(a5),a2
-		moveq	#2,d5
-LSclearloop0	move.l	(a2)+,a1
-		moveq	#7,d6		;d6=contatore bitplanes
-LSclearloop1	move.l	(a1)+,a0
-		move.w	#499,d7
-LSclearloop2	clr.l	(a0)+
-		clr.l	(a0)+
-		clr.l	(a0)+
-		clr.l	(a0)+
-		dbra	d7,LSclearloop2
-		dbra	d6,LSclearloop1
-		dbra	d5,LSclearloop0
+
+                moveq   #0,d2
+                bsr     ClearScreen2
+                moveq   #1,d2
+                bsr     ClearScreen2
+                moveq   #2,d2
+                bsr     ClearScreen2
 
 		move.l	pixel_type(a5),savepixeltype(a5)
 		move.l	#1,pixel_type(a5)
@@ -377,8 +370,6 @@ LSnolevcode
 		move.b	d0,Protection2(a5)	;Segnala tipo controllo da effettuare (1,2,3)
 LSnogame2
     ENDIF	;*** !!!FINE PROTEZIONE!!!
-
-
 
 
 ;	;*** Stampa nome rivista a cui  stato mandato il gioco
@@ -718,8 +709,14 @@ ShowPic		movem.l	d0-d7/a0-a5,-(sp)
 		moveq	#0,d2
 		jsr	ClearScreen
 SPin2
-		bsr	c2p
+                tst.b   RTGFlag(a5)
+                beq     .aga
+                jsr     RTGShowPic
+                bra     .c2pdone
 
+.aga
+		bsr	c2p
+.c2pdone
 		moveq	#0,d2			;Mostra primo schermo
 		bsr	ChangeScreen
 
@@ -909,26 +906,20 @@ ClearScreen	movem.l	d0-d7/a0-a5,-(sp)
 		jsr	ResetPalette
 
 CS2
-		move.w	#499,d5
-		tst.w	d2
-		bne.s	CSnos0
-		move.w	#599,d5
-CSnos0
 		GFXBASE
 		CALLSYS	WaitTOF
 
-		lea	planes_bitmap1(a5),a2
-		move.l	(a2,d2.w*4),a1
-		moveq	#0,d0
-		moveq	#7,d6		;d6=contatore bitplanes
-CSclearloop1	move.l	(a1)+,a0
-		move.w	d5,d7
-CSclearloop2	move.l	d0,(a0)+
-		move.l	d0,(a0)+
-		move.l	d0,(a0)+
-		move.l	d0,(a0)+
-		dbra	d7,CSclearloop2
-		dbra	d6,CSclearloop1
+                lea     screen_rport(a5),a2
+                move.l  rp_BitMap(a2),a4        ; Preseve rp_BitMap
+
+                lea     screen_bitmap1(a5),a0
+                move.l  (a0,d2.w*4),rp_BitMap(a2)
+                moveq   #0,d0
+                move.l  a2,a1
+                CALLSYS SetRast
+                CALLSYS WaitBlit
+
+                move.l  a4,rp_BitMap(a2)        ; Restore rp_BitMap
 
 		movem.l	(sp)+,d0-d7/a0-a5
 		rts
@@ -1098,7 +1089,7 @@ VersionLogo
 		cnop	0,4
 
 		xdef	ActualScr,DiskReqFlag,PresFirstTime
-		xdef	ShowCredits,StartGame
+		xdef	ShowCredits,StartGame,PicPun
 
 ActualScr	ds.w	1	;Numero (0,1,2) del buffer mostrato
 

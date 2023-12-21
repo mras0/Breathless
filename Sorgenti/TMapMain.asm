@@ -186,11 +186,7 @@ TMgsreset	move.l	d0,(a0)+
 		CALLSYS	WaitTOF
 		CALLSYS	WaitTOF
 
-                ; XXX Skip for now...
-                tst.b   RTGFlag(a5)
-                bne     .RTG
 		jsr	Presentation
-.RTG
 
 		IFEQ	DEBUG
 		tst.b	DiskFlag(a5)		;Se si parte da floppy, non deve essere possibile uscire dal programma
@@ -282,7 +278,7 @@ TMfml
 		jsr	LoadLevelData		;Carica dati livello
 		bne	TMexit			; Esce se c' errore
 
-		;jsr	PressKeyMessage ; XXX Temp
+		jsr	PressKeyMessage
 
 		bsr	ChangePixelHeight
 

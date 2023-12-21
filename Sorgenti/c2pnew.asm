@@ -1,10 +1,11 @@
                 include 'System'
-                include 'tmap.i'
+                include 'Tmap.i'
 
                 xref c2p1x1_8_c5_bm_040
                 xref c2p2x1_8_c5_bm
                 xref c2p2x2_8_c5_bm
-                xref RTGFlag,cgxbase
+                xref RTGFlag
+                xref RTGLock,RTGUnlock,bmBytesPerRow,bmData
                 xref panel_bitmap
 
 ;TODO: Consider using some smarter CGX functions instead of the stupid scaling/copying
@@ -92,18 +93,17 @@ c2p8_waitblitter::
 ; a1	BitMap
 rtg:
         movem.l d2-d7/a2-a6,-(sp)
-        move.l  a0,a2
-        move.l  a1,a0
+        move.l  a0,a2                           ; a2 = chunky screen
         move.l  a1,a4                           ; a4 = bitmap
-        lea     lbmtags(pc),a1
-        move.l  cgxbase(a5),a6
-        jsr     _LVOLockBitMapTagList(a6)
+
+        move.l  a1,a0
+        jsr     RTGLock
         tst.l   d0
         beq     .out
         ; Preserve d0! for unlock
 
-        move.l  bmData(pc),a1
-        move.l  bmBytesPerRow(pc),d1
+        move.l  bmData(a5),a1
+        move.l  bmBytesPerRow(a5),d1
 
         add.l   sxofs(pc),a1
         move.l  syofs(pc),d2
@@ -115,9 +115,7 @@ rtg:
         move.l  .scale(pc,d3.l*4),a3
         jsr     (a3)
 
-
-        move.l  d0,a0
-        jsr     _LVOUnLockBitMap(a6)
+        jsr     RTGUnlock
 
         ; Panel
 
@@ -236,9 +234,3 @@ chunky          ds.l    1
 c2pfunc         ds.l    1
 
 scalemode       ds.l 1
-bmBytesPerRow   ds.l 1
-bmData          ds.l 1
-lbmtags:
-        dc.l    LBMI_BYTESPERROW,bmBytesPerRow
-        dc.l    LBMI_BASEADDRESS,bmData
-        dc.l    0 ; TAG_END

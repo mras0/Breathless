@@ -49,6 +49,7 @@ OBJS_COMMON  =	sincos.o \
 				Terminal.o \
 				Audio.o \
 				Player/Music.o \
+				RTG.o \
 				Last.o
 
 OBJS_COMMON += c2pnew.o
