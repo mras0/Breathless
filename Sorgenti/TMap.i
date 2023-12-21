@@ -42,8 +42,13 @@ MAXVIEWOBJECTS		EQU	256	;Numero massimo di oggetti visibili per volta
 MAXPLAYERSHOTS		EQU	6	;Numero massimo di spari del player presenti sullo schermo
 
 ;*** Dimensioni aree di memoria da allocare
-	
+
+        IFD DEVMODE
+CHUNKY_SIZE             SET     CHUNKY_WIDTH*CHUNKY_HEIGHT+64  ; Over allocate in devmode to avoid prefetch in c2p routine from giving warnings
+        ELSE
 CHUNKY_SIZE		EQU	CHUNKY_WIDTH*CHUNKY_HEIGHT	;Dim. schermo fake chunky
+        ENDC
+
 MAPMEM_SIZE		EQU	65536+1024+(MAX_BLOCK_NUM<<5)+(MAX_EDGES_NUM<<4)+MAX_FX_SIZE		;Dim. area memoria mappa
 MAPOBJECTS_SIZE		EQU	MAXLEVELOBJECTS*64	;Dim. area memoria per le strutture degli oggetti in mappa
 TEXTURESDIR_SIZE	EQU	MAXTEXTURES*16		;Dim. area memoria directory textures
