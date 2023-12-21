@@ -520,7 +520,7 @@ OpenAgaScreen
 ; now, we must allocate 3 bitmap for the main triple buffered screen
 		GFXBASE
 		move.l	#SCREEN_WIDTH,d0
-		move.l	#SCREEN_HEIGHT+1,d1
+		move.l	#SCREEN_HEIGHT,d1
 		move.l	#SCREEN_DEPTH,d2
 		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
 		sub.l	a0,a0
@@ -530,7 +530,7 @@ OpenAgaScreen
 		beq	OAGAerror
 
 		move.l	#SCREEN_WIDTH,d0
-		move.l	#SCREEN_HEIGHT-PANEL_HEIGHT,d1
+		move.l	#SCREEN_HEIGHT,d1
 		move.l	#SCREEN_DEPTH,d2
 		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
 		sub.l	a0,a0
@@ -539,12 +539,22 @@ OpenAgaScreen
 		beq	OAGAerror
 
 		move.l	#SCREEN_WIDTH,d0
-		move.l	#SCREEN_HEIGHT-PANEL_HEIGHT,d1
+		move.l	#SCREEN_HEIGHT,d1
 		move.l	#SCREEN_DEPTH,d2
 		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
 		sub.l	a0,a0
 		CALLSYS	AllocBitMap
 		move.l	d0,screen_bitmap3(a5)
+		beq	OAGAerror
+
+; and for the panel
+		move.l	#SCREEN_WIDTH,d0
+		move.l	#PANEL_HEIGHT+1,d1
+		move.l	#SCREEN_DEPTH,d2
+		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
+		sub.l	a0,a0
+		CALLSYS	AllocBitMap
+		move.l	d0,panel_bitmap(a5)
 		beq	OAGAerror
 
 ; test interleaved state
@@ -566,6 +576,13 @@ OpenAgaScreen
 		btst	#BMB_INTERLEAVED,d0	; is interleaved?
 		bne	OAGAerror		; bomb out if interleaved
 
+		move.l	panel_bitmap(a5),a0	; a0=bitmap
+		move.l	#BMA_FLAGS,d1		; get bitmap flags
+		CALLSYS	GetBitMapAttr		; test interleaved state
+		btst	#BMB_INTERLEAVED,d0	; is interleaved?
+		bne	OAGAerror		; bomb out if interleaved
+
+
 ; now, initialize a rastport for drawing into the canvas bitmap
 		lea	screen_rport(a5),a1
 		CALLSYS	InitRastPort
@@ -575,15 +592,12 @@ OpenAgaScreen
 ; Calculate panel bitplane pointers
 
 		lea	PanelBitplanes(a5),a1
-		move.l	screen_bitmap1(a5),a0
+		move.l	panel_bitmap(a5),a0
 		lea	bm_Planes(a0),a0
 
 		moveq	#7,d7
-PanelPtrLoop	move.l	(a0)+,d0
-		add.l	#8000,d0
-		move.l	d0,(a1)+
+PanelPtrLoop	move.l	(a0)+,(a1)+
 		dbra	d7,PanelPtrLoop
-
 
 
 ; Open screen.
@@ -1028,6 +1042,16 @@ CRnspritenext	dbra	d7,CRnspritesloop
 
 ;***************************************************************************
 
+FREEBITMAP      MACRO
+		move.l	\1,d0
+		beq.s	.\@
+                clr.l   \1
+		move.l	d0,a0
+		GFXBASE
+		CALLSYS	FreeBitMap
+.\@
+                ENDM
+
 CloseAgaScreen
 
 	;* Installa user copper list 1 e libera la memoria da essa allocata
@@ -1068,24 +1092,11 @@ CASnovport	move.l	TMapScreen(a5),d0
 		CALLSYS	CloseScreen
 		clr.l	TMapScreen(a5)
 CASnoscreen
-		move.l	screen_bitmap1(a5),d0
-		beq.s	CASnobitmap1
-		move.l	d0,a0
-		GFXBASE
-		CALLSYS	FreeBitMap
-CASnobitmap1
-		move.l	screen_bitmap2(a5),d0
-		beq.s	CASnobitmap2
-		move.l	d0,a0
-		GFXBASE
-		CALLSYS	FreeBitMap
-CASnobitmap2
-		move.l	screen_bitmap3(a5),d0
-		beq.s	CASnobitmap3
-		move.l	d0,a0
-		GFXBASE
-		CALLSYS	FreeBitMap
-CASnobitmap3
+
+                FREEBITMAP screen_bitmap1(a5)
+                FREEBITMAP screen_bitmap2(a5)
+                FREEBITMAP screen_bitmap3(a5)
+                FREEBITMAP panel_bitmap(a5)
 
 		move.l	myDBufInfo(a5),d0
 		beq.s	CASnodbufinfo
@@ -1376,6 +1387,7 @@ TMapScreen	ds.l	1
 screen_bitmap1	ds.l	1	;Bitmap struct or true chunky screen pointer
 screen_bitmap2	ds.l	1	;Bitmap struct or true chunky screen pointer
 screen_bitmap3	ds.l	1	;Bitmap struct or true chunky screen pointer
+panel_bitmap    ds.l    1
 screen_viewport	ds.l	1
 PanelBitplanes	ds.l	8	;Puntatori agli 8 bitplane del pannello punteggi
 myDBufInfo	ds.l	1

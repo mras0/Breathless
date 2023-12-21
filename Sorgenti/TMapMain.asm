@@ -1890,38 +1890,14 @@ Fret		rts
 
 PanelSetup
 		lea	panelpic(pc),a1
-		move.l	planes_bitmap1(a5),a2
+		lea	PanelBitplanes(a5),a2
 		moveq	#7,d6		;d6=contatore bitplanes
 PScopyloop0	move.l	(a2)+,a0
-		lea	8000(a0),a0
-		move.w	#((320*40)>>6)-1,d7
+		move.w	#SCREEN_WIDTH*PANEL_HEIGHT/64-1,d7
 PScopyloop1	move.l	(a1)+,(a0)+
 		move.l	(a1)+,(a0)+
 		dbra	d7,PScopyloop1
 		dbra	d6,PScopyloop0
-
-;		lea	panelpic(pc),a1
-;		move.l	planes_bitmap2(a5),a2
-;		moveq	#7,d6		;d6=contatore bitplanes
-;PScopyloop2	move.l	(a2)+,a0
-;		lea	8000(a0),a0
-;		move.w	#((320*40)>>6)-1,d7
-;PScopyloop3	move.l	(a1)+,(a0)+
-;		move.l	(a1)+,(a0)+
-;		dbra	d7,PScopyloop3
-;		dbra	d6,PScopyloop2
-
-;		lea	panelpic(pc),a1
-;		move.l	planes_bitmap3(a5),a2
-;		moveq	#7,d6		;d6=contatore bitplanes
-;PScopyloop4	move.l	(a2)+,a0
-;		lea	8000(a0),a0
-;		move.w	#((320*40)>>6)-1,d7
-;PScopyloop5	move.l	(a1)+,(a0)+
-;		move.l	(a1)+,(a0)+
-;		dbra	d7,PScopyloop5
-;		dbra	d6,PScopyloop4
-
 		rts
 
 ;**********************************************************************
