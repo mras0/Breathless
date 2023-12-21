@@ -20,23 +20,6 @@
 	include 'hardware/dmabits.i'
 	include 'hardware/intbits.i'
 
-
-    ; cybergraphics
-;
-; Parameters for LockBitMapTagList()
-;
-
-LBMI_WIDTH              EQU     ($84001001)
-LBMI_HEIGHT             EQU     ($84001002)
-LBMI_DEPTH              EQU     ($84001003)
-LBMI_PIXFMT             EQU     ($84001004)
-LBMI_BYTESPERPIX        EQU     ($84001005)
-LBMI_BYTESPERROW        EQU     ($84001006)
-LBMI_BASEADDRESS        EQU     ($84001007)
-
-_LVOLockBitMapTagList   EQU     -168    ; APTR LockBitMapTagList(APTR BitMap, struct TagItem * TagList) (a0,a1)
-_LVOUnLockBitMap        EQU     -174    ; void UnLockBitMap(APTR Handle) (a0)
-
 	near a5
 
 	section .text,code

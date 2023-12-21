@@ -44,6 +44,8 @@
 
 		xref	LoadPalette,Rnd
 
+                xref    RTGChooseMode
+
 ;* Inizio del programma ********************************
 
 STACK_SIZE=16*1024-20 ; 8K seems to work, but let's play it safe
@@ -483,12 +485,13 @@ OpenAgaScreen
                 GFXBASE
                 CALLSYS SetChipRev
 
-                ;move.l  #PAL_MONITOR_ID,d0
-                ;move.l  #$50011000,d0   ; UAEGFX:320x240
-                move.l  #$50091000,d0   ; UAEGFX:320x256
-                ;move.l  #$50191000,d0   ; PISTORM:320x256
+
+                jsr     RTGChooseMode
+                tst.l   d0
+                beq     .NoRTG
                 move.l  d0,did_tag1+4
                 move.l  d0,did_tag2+4
+.NoRTG
 
                 move.l  #ErrMsgScreen,ErrorMessage(a5)
 		INTUITIONBASE
@@ -1224,7 +1227,7 @@ screentaglist:
 		dc.l	SA_Width,SCREEN_WIDTH,SA_Height,SCREEN_HEIGHT+1,SA_Depth,SCREEN_DEPTH
 		dc.l	SA_Quiet,-1			; prevent gadgets, titlebar from appearing.
 		dc.l	SA_Type,CUSTOMSCREEN
-did_tag1:	dc.l	SA_DisplayID,0
+did_tag1:	dc.l	SA_DisplayID,PAL_MONITOR_ID
 		dc.l	SA_Draggable,0
 ;bm_tag:
 ;		dc.l	SA_BitMap,0
@@ -1273,7 +1276,7 @@ usescreentaglist:
 		dc.l	SA_Width,SCREEN_WIDTH,SA_Height,16,SA_Depth,1
 		dc.l	SA_Quiet,-1			; prevent gadgets, titlebar from appearing.
 		dc.l	SA_Type,CUSTOMSCREEN
-did_tag2:	dc.l	SA_DisplayID,0
+did_tag2:	dc.l	SA_DisplayID,PAL_MONITOR_ID
 		dc.l	SA_Draggable,0
 		dc.l	SA_Colors32,usescreencolors
 		dc.l	TAG_END,0
