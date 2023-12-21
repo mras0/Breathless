@@ -175,6 +175,11 @@ _start
 		OPENLIB	DosName(pc),dosbase
 		OPENLIB	IntuitionName(pc),intuitionbase
 
+		lea	CgxName(pc),a1
+		moveq	#40,d0 ; For LockBitMapTagList/UnLockBitMap
+		move.l	execbase(a5),a6
+		CALLSYS	OpenLibrary
+		move.l	d0,cgxbase(a5)
 
                 move.l  #ErrMsgAlloc,ErrorMessage(a5)
 		ALLOCMEMORY #ie_SIZEOF,MEMF_PUBLIC|MEMF_CLEAR,myInputEvent
@@ -285,7 +290,6 @@ OAopenscrok
 		beq	OAerror
 
 		bsr	TurnOffMousePointer
-
 
 
 			;*** Alloca sprites per sprite screen
@@ -473,14 +477,17 @@ TurnOffMousePointer
 ;********************************************************************
 
 OpenAgaScreen
-                move.l  #ErrMsgAGA,ErrorMessage(a5)
+                ; Enable AGA (in case we're run w/o startup-sequence)
                 move.l  #SETCHIPREV_AA,d0
                 move.l  d0,d2
                 GFXBASE
                 CALLSYS SetChipRev
-                and.l   d2,d0
-                cmp.l   d2,d0
-                bne     OAGAerror
+
+                ;move.l  #PAL_MONITOR_ID,d0
+                ;move.l  #$50011000,d0   ; UAEGFX:320x240
+                move.l  #$50091000,d0   ; UAEGFX:320x256
+                move.l  d0,did_tag1+4
+                move.l  d0,did_tag2+4
 
                 move.l  #ErrMsgScreen,ErrorMessage(a5)
 		INTUITIONBASE
@@ -515,25 +522,43 @@ OpenAgaScreen
 		INTUITIONBASE
 		CALLSYS	CloseScreen
 
+; Open screen.
+		sub.l	a0,a0			; no NewScreen structure, just tags
+		lea	screentaglist(pc),a1	; screen attributes
+		INTUITIONBASE
+		CALLSYS	OpenScreenTagList
+		move.l	d0,TMapScreen(a5)
+		beq	OAGAerror
 
+; Get ViewPort pointer
+
+		move.l	TMapScreen(a5),a0
+		lea	sc_ViewPort(a0),a1
+		move.l	a1,screen_viewport(a5)
+
+; Get screen bitmap (for friend_bitmap)
+                move.l  sc_RastPort+rp_BitMap(a0),a2
 
 ; now, we must allocate 3 bitmap for the main triple buffered screen
 		GFXBASE
-		move.l	#SCREEN_WIDTH,d0
-		move.l	#SCREEN_HEIGHT,d1
-		move.l	#SCREEN_DEPTH,d2
-		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
-		sub.l	a0,a0
-		CALLSYS	AllocBitMap
-		move.l	d0,bm_tag+4
-		move.l	d0,screen_bitmap1(a5)
-		beq	OAGAerror
+;XXX First one is just the screen bitmap
+		;move.l	#SCREEN_WIDTH,d0
+		;move.l	#SCREEN_HEIGHT,d1
+		;move.l	#SCREEN_DEPTH,d2
+		;move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
+                ;move.l  a2,a0
+		;CALLSYS	AllocBitMap
+		;;move.l	d0,bm_tag+4
+		;move.l	d0,screen_bitmap1(a5)
+		;beq	OAGAerror
+                move.l  a2,screen_bitmap1(a5)
 
+;XXX These only need to have height = SCREEN_HEIGHT-PANEL_HEIGHT for AGA
 		move.l	#SCREEN_WIDTH,d0
 		move.l	#SCREEN_HEIGHT,d1
 		move.l	#SCREEN_DEPTH,d2
 		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
-		sub.l	a0,a0
+                move.l  a2,a0
 		CALLSYS	AllocBitMap
 		move.l	d0,screen_bitmap2(a5)
 		beq	OAGAerror
@@ -542,7 +567,7 @@ OpenAgaScreen
 		move.l	#SCREEN_HEIGHT,d1
 		move.l	#SCREEN_DEPTH,d2
 		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
-		sub.l	a0,a0
+                move.l  a2,a0
 		CALLSYS	AllocBitMap
 		move.l	d0,screen_bitmap3(a5)
 		beq	OAGAerror
@@ -552,7 +577,7 @@ OpenAgaScreen
 		move.l	#PANEL_HEIGHT+1,d1
 		move.l	#SCREEN_DEPTH,d2
 		move.l	#BMF_DISPLAYABLE|BMF_CLEAR,d3
-		sub.l	a0,a0
+		sub.l	a0,a0   ; XXX friend_bitmap=NULL
 		CALLSYS	AllocBitMap
 		move.l	d0,panel_bitmap(a5)
 		beq	OAGAerror
@@ -563,6 +588,9 @@ OpenAgaScreen
 		CALLSYS	GetBitMapAttr		; test interleaved state
 		btst	#BMB_INTERLEAVED,d0	; is interleaved?
 		bne	OAGAerror		; bomb out if interleaved
+
+                btst    #BMB_STANDARD,d0
+                seq     RTGFlag
 
 		move.l	screen_bitmap2(a5),a0	; a0=bitmap
 		move.l	#BMA_FLAGS,d1		; get bitmap flags
@@ -581,6 +609,8 @@ OpenAgaScreen
 		CALLSYS	GetBitMapAttr		; test interleaved state
 		btst	#BMB_INTERLEAVED,d0	; is interleaved?
 		bne	OAGAerror		; bomb out if interleaved
+                btst    #BMB_STANDARD,d0        ; This one should be a standard one
+                beq     OAGAerror
 
 
 ; now, initialize a rastport for drawing into the canvas bitmap
@@ -599,22 +629,14 @@ OpenAgaScreen
 PanelPtrLoop	move.l	(a0)+,(a1)+
 		dbra	d7,PanelPtrLoop
 
+                tst.b   RTGFlag
+                beq     .AGA
+                tst.l   cgxbase(a5)
+                bne     .AfterCL
+                move.l  #ErrMsgCgx,ErrorMessage(a5)
+                bra     ErrorQuit
 
-; Open screen.
-		sub.l	a0,a0			; no NewScreen structure, just tags
-		lea	screentaglist(pc),a1	; screen attributes
-		INTUITIONBASE
-		CALLSYS	OpenScreenTagList
-		move.l	d0,TMapScreen(a5)
-		beq	OAGAerror
-
-
-; Get ViewPort pointer
-
-		move.l	TMapScreen(a5),a0
-		lea	sc_ViewPort(a0),a1
-		move.l	a1,screen_viewport(a5)
-
+.AGA
 ; Set video and sprites type
 
 		GFXBASE
@@ -636,6 +658,8 @@ PanelPtrLoop	move.l	(a0)+,(a1)+
 ; Double pixel height with a custom copper list
 
 		bsr	CustomCopList
+
+.AfterCL
 
 ; Setup copper and load view
 
@@ -1032,7 +1056,7 @@ CRnspritenext	dbra	d7,CRnspritesloop
 		FREEMEMORY FakeChunkyPun,#CHUNKY_SIZE
 		FREEMEMORY myInputEvent,#ie_SIZEOF
 
-
+                CLOSELIB cgxbase
 		CLOSELIB intuitionbase
 		CLOSELIB dosbase
 		CLOSELIB gfxbase
@@ -1093,7 +1117,7 @@ CASnovport	move.l	TMapScreen(a5),d0
 		clr.l	TMapScreen(a5)
 CASnoscreen
 
-                FREEBITMAP screen_bitmap1(a5)
+                ;FREEBITMAP screen_bitmap1(a5)  ; Taken from the screen
                 FREEBITMAP screen_bitmap2(a5)
                 FREEBITMAP screen_bitmap3(a5)
                 FREEBITMAP panel_bitmap(a5)
@@ -1178,6 +1202,7 @@ SCSj1		tst.b	(a2)+
 GraphicsName	dc.b	'graphics.library',0
 DosName		dc.b	'dos.library',0
 IntuitionName	dc.b	'intuition.library',0
+CgxName         dc.b    'cybergraphics.library',0
 timername	dc.b	'timer.device',0
 audioname	dc.b	'audio.device',0
 
@@ -1198,10 +1223,10 @@ screentaglist:
 		dc.l	SA_Width,SCREEN_WIDTH,SA_Height,SCREEN_HEIGHT+1,SA_Depth,SCREEN_DEPTH
 		dc.l	SA_Quiet,-1			; prevent gadgets, titlebar from appearing.
 		dc.l	SA_Type,CUSTOMSCREEN
-		dc.l	SA_DisplayID,PAL_MONITOR_ID
+did_tag1:	dc.l	SA_DisplayID,0
 		dc.l	SA_Draggable,0
-bm_tag:
-		dc.l	SA_BitMap,0
+;bm_tag:
+;		dc.l	SA_BitMap,0
 		dc.l	TAG_END,0
 
 	xdef	uCopTags
@@ -1247,7 +1272,7 @@ usescreentaglist:
 		dc.l	SA_Width,SCREEN_WIDTH,SA_Height,16,SA_Depth,1
 		dc.l	SA_Quiet,-1			; prevent gadgets, titlebar from appearing.
 		dc.l	SA_Type,CUSTOMSCREEN
-		dc.l	SA_DisplayID,PAL_MONITOR_ID
+did_tag2:	dc.l	SA_DisplayID,0
 		dc.l	SA_Draggable,0
 		dc.l	SA_Colors32,usescreencolors
 		dc.l	TAG_END,0
@@ -1282,10 +1307,10 @@ ERRMSG          MACRO
 ErrMsgGeneric   ERRMSG  "Resource allocation failed"
 ErrMsgOSVer     ERRMSG  "AmigaOS 3.0 or later required"
 ErrMsgAlloc     ERRMSG  "Memory allocation failed"
-ErrMsgAGA       ERRMSG  "AGA required"
 ErrMsgScreen    ERRMSG  "Failed to open screen"
 ErrMsgLoad      ERRMSG  "Failed to load data"
 ErrMsgUnknown   ERRMSG  "Unknown error occured"
+ErrMsgCgx       ERRMSG  "cybergraphics.library required for RTG"
 
                 even
 ;***************************************************************************
@@ -1311,12 +1336,13 @@ Yoffset			ds.l	1
 YoffsetPlus4	ds.l	WINDOW_MAX_HEIGHT-1	;Lista di offset alle righe dello schermo chunky pixel. DEVE avere offset rispetto ad a5 di massimo 127.
 
 
-	xdef	execbase,gfxbase,dosbase,intuitionbase
+	xdef	execbase,gfxbase,dosbase,intuitionbase,cgxbase
 
 execbase	ds.l	1
 gfxbase		ds.l	1
 dosbase		ds.l	1
 intuitionbase	ds.l	1
+cgxbase         ds.l    1
 savesp		ds.l	1
 
 myTask		ds.l	1	;Indirizzo di questo task
@@ -1381,6 +1407,7 @@ nullbytes	ds.l	1
 	xdef	screen_bitmap1,screen_bitmap2,screen_bitmap3,screen_viewport
 	xdef	myDBufInfo,myCopList1,myCopList2,Sprites,NullSprites
 	xdef	PanelBitplanes,screen_rport,myInputEvent
+        xdef    panel_bitmap
 
 IntuitionView	ds.l	1
 TMapScreen	ds.l	1
@@ -1417,6 +1444,9 @@ ResetMousePos	ds.b	1	;Se=TRUE, comunica all'input handler di
 				;resettare la posizione del mouse
 
 		ds.b	1	;Usato per allineare
+
+                xdef    RTGFlag
+RTGFlag         ds.b    1
 
 		cnop	0,4
 

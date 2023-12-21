@@ -106,6 +106,7 @@
 	xref	TurnOffMousePointer
 	xref	ResetMoveVars
 	xref	CopyToActualConfig
+        xref    RTGFlag
 
 
 ;************************************************************
@@ -184,7 +185,13 @@ TMgsreset	move.l	d0,(a0)+
 		GFXBASE
 		CALLSYS	WaitTOF
 		CALLSYS	WaitTOF
+
+                ; XXX Skip for now...
+                tst.b   RTGFlag(a5)
+                bne     .RTG
 		jsr	Presentation
+.RTG
+
 		IFEQ	DEBUG
 		tst.b	DiskFlag(a5)		;Se si parte da floppy, non deve essere possibile uscire dal programma
 		bne.s	TMcodacc
@@ -275,13 +282,11 @@ TMfml
 		jsr	LoadLevelData		;Carica dati livello
 		bne	TMexit			; Esce se c' errore
 
-		jsr	PressKeyMessage
+		;jsr	PressKeyMessage ; XXX Temp
 
 		bsr	ChangePixelHeight
 
-
 		clr.w	P61_Play
-
 
 		jsr	InitTables
 		jsr	InitMap
@@ -1753,6 +1758,7 @@ CPHout
 		xdef	ClearCurrentBitmap
 
 ClearCurrentBitmap
+                rts     ; XXX TEMP 
 
 		lea	background(pc),a1
 		move.l	CurrentBitmap(a5),a3

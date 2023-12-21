@@ -201,6 +201,8 @@ PLnocred
 		xdef	LoadingScreen
 
 LoadingScreen
+                ; XXX TEMP
+                rts
 
 		move.w	#-1,ActualScr(a5)
 
@@ -905,6 +907,7 @@ ClearScreen2	movem.l	d0-d7/a0-a5,-(sp)
 ClearScreen	movem.l	d0-d7/a0-a5,-(sp)
 
 		jsr	ResetPalette
+
 CS2
 		move.w	#499,d5
 		tst.w	d2

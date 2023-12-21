@@ -336,6 +336,29 @@ DEVPAD  MACRO
         ENDC
         ENDM
 
+UAECMD  MACRO
+.call\@:
+        pea     0.w
+        pea     0.w
+        pea     .cmdend\@-.cmd\@
+        pea     .cmd\@(pc)
+        pea     -1.w
+        pea     82.w
+        jsr     $f0ff60
+        lea     24(sp),sp
+        bra     .done\@
+.cmd\@: dc.b    \1
+        dc.b    0
+.cmdend\@:
+        EVEN
+.done\@:
+        ENDM
+
+UAE_ENTER_DEBUGGER MACRO
+        UAECMD 'AKS_ENTERDEBUGGER 1'
+        ENDM
+
+
         xref GameFlags
 FLAGOP  MACRO
         \1.b    #(31-(FLAG_\2))&7,GameFlags+((31-(FLAG_\2))>>3)(a5)

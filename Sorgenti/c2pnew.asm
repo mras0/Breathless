@@ -1,7 +1,26 @@
-                section .text,code
+                include 'System'
+                include 'tmap.i'
+
                 xref c2p1x1_8_c5_bm_040
                 xref c2p2x1_8_c5_bm
                 xref c2p2x2_8_c5_bm
+                xref RTGFlag,cgxbase
+                xref panel_bitmap
+
+;
+; Parameters for LockBitMapTagList()
+;
+
+LBMI_WIDTH              EQU     ($84001001)
+LBMI_HEIGHT             EQU     ($84001002)
+LBMI_DEPTH              EQU     ($84001003)
+LBMI_PIXFMT             EQU     ($84001004)
+LBMI_BYTESPERPIX        EQU     ($84001005)
+LBMI_BYTESPERROW        EQU     ($84001006)
+LBMI_BASEADDRESS        EQU     ($84001007)
+
+_LVOLockBitMapTagList   EQU     -168    ; APTR LockBitMapTagList(APTR BitMap, struct TagItem * TagList) (a0,a1)
+_LVOUnLockBitMap        EQU     -174    ; void UnLockBitMap(APTR Handle) (a0)
 
 ; void __asm c2p8_init (register __a0 UBYTE *chunky,	// pointer to chunky data
 ;			register __a1 ULONG mode,	// conversion mode
@@ -39,15 +58,25 @@ c2p8_init::
         lsr.l   #1,d1
         move.l  d0,sxofs
         move.l  d1,syofs
+        lea     .c2pfuncs(pc),a0
+        tst.b   RTGFlag(a5)
+        beq     .aga
+        lea     .rtgfuncs(pc),a0
+.aga
         move.l  a1,d0
         and.w   #3,d0
-        move.l  .c2pfuncs(pc,d0.w*4),c2pfunc
+        move.l  (a0,d0.w*4),c2pfunc
         rts
 .c2pfuncs:
         dc.l    c2p1x1_8_c5_bm_040      ; 1x1
         dc.l    c2p2x1_8_c5_bm          ; 2x1
         dc.l    c2p8_1x2                ; 1x2
         dc.l    c2p2x2_8_c5_bm          ; 2x2
+.rtgfuncs:
+        dc.l    rtg
+        dc.l    rtg
+        dc.l    rtg
+        dc.l    rtg
 
 c2p8_1x2:
         ; HACK: Double BytesPerRow per row (and restore)
@@ -70,11 +99,78 @@ c2p8_go::
 c2p8_waitblitter::
         rts
 
-        ; Keep in order of arguments for c2p routine
-        cnop    0,4
-cwidth  ds.l    1
-cheight ds.l    1
-sxofs   ds.l    1
-syofs   ds.l    1
-chunky  ds.l    1
-c2pfunc ds.l    1
+
+; a0	chunkyscreen
+; a1	BitMap
+rtg:
+        movem.l d2-d7/a2-a6,-(sp)
+        move.l  a0,a2
+        move.l  a1,a0
+        move.l  a1,a4                           ; a4 = bitmap
+        lea     lbmtags(pc),a1
+        move.l  cgxbase(a5),a6
+        jsr     _LVOLockBitMapTagList(a6)
+        tst.l   d0
+        beq     .out
+        ; Preserve d0!
+
+        move.l  bmData(pc),a1
+        move.l  bmBytesPerRow(pc),d1
+
+        add.l   sxofs(pc),a1
+        move.l  syofs(pc),d2
+        mulu.l  d1,d2
+        add.l   d2,a1
+
+        move.l  cheight(pc),d3
+        ; a2 = src, a1 = dest
+.y:
+        move.l  a1,a3
+        move.l  cwidth(pc),d4
+        lsr.l   #2,d4
+.x:
+        move.l  (a2)+,(a3)+
+        subq.w  #1,d4
+        bne     .x
+        add.l   d1,a1
+        subq.w  #1,d3
+        bne     .y
+
+        move.l  d0,a0
+        jsr     _LVOUnLockBitMap(a6)
+
+        ; Panel
+
+        move.l  panel_bitmap(a5),a0     ; SrcBitMap
+        moveq   #0,d0                   ; SrcX
+        moveq   #0,d1                   ; SrcY
+        move.l  a4,a1                   ; DstBitMap
+        moveq   #0,d2                   ; DstX
+        move.w  #SCREEN_HEIGHT-PANEL_HEIGHT,d3 ; DstY
+        move.w  #SCREEN_WIDTH,d4        ; SizeX
+        move.w  #PANEL_HEIGHT,d5        ; SizeY
+        move.w  #$C0,d6                 ; Minterm
+        moveq   #-1,d7                  ; Mask
+        sub.l   a2,a2                   ; TempA
+        GFXBASE
+        jsr     _LVOBltBitMap(a6)
+
+.out:
+        movem.l (sp)+,d2-d7/a2-a6
+        rts
+
+                cnop    0,4
+; Keep in order of arguments for c2p routine
+cwidth          ds.l    1
+cheight         ds.l    1
+sxofs           ds.l    1
+syofs           ds.l    1
+chunky          ds.l    1
+c2pfunc         ds.l    1
+
+bmBytesPerRow   ds.l 1
+bmData          ds.l 1
+lbmtags:
+        dc.l    LBMI_BYTESPERROW,bmBytesPerRow
+        dc.l    LBMI_BASEADDRESS,bmData
+        dc.l    0 ; TAG_END
