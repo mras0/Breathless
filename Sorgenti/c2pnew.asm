@@ -7,6 +7,8 @@
                 xref RTGFlag,cgxbase
                 xref panel_bitmap
 
+;TODO: Consider using some smarter CGX functions instead of the stupid scaling/copying
+
 ; void __asm c2p8_init (register __a0 UBYTE *chunky,	// pointer to chunky data
 ;			register __a1 ULONG mode,	// conversion mode
 ;			register __d0 ULONG signals1,	// 1 << sigbit1
@@ -34,8 +36,8 @@ c2p8_init::
         beq     .nodbly
         add.l   d3,d3
 .nodbly:
-        move.l  #320,d0
-        move.l  #200,d1
+        move.l  #CHUNKY_WIDTH,d0
+        move.l  #CHUNKY_HEIGHT,d1
 
         sub.l   d2,d0
         sub.l   d3,d1
@@ -49,7 +51,8 @@ c2p8_init::
         lea     .rtgfuncs(pc),a0
 .aga
         move.l  a1,d0
-        and.w   #3,d0
+        and.l   #3,d0
+        move.l  d0,scalemode
         move.l  (a0,d0.w*4),c2pfunc
         rts
 .c2pfuncs:
@@ -107,19 +110,11 @@ rtg:
         mulu.l  d1,d2
         add.l   d2,a1
 
-        move.l  cheight(pc),d3
-        ; a2 = src, a1 = dest
-.y:
-        move.l  a1,a3
-        move.l  cwidth(pc),d4
-        lsr.l   #2,d4
-.x:
-        move.l  (a2)+,(a3)+
-        subq.w  #1,d4
-        bne     .x
-        add.l   d1,a1
-        subq.w  #1,d3
-        bne     .y
+
+        move.l  scalemode(pc),d3
+        move.l  .scale(pc,d3.l*4),a3
+        jsr     (a3)
+
 
         move.l  d0,a0
         jsr     _LVOUnLockBitMap(a6)
@@ -143,6 +138,93 @@ rtg:
 .out:
         movem.l (sp)+,d2-d7/a2-a6
         rts
+.scale:
+        dc.l    scale1x1
+        dc.l    scale2x1
+        dc.l    scale1x2
+        dc.l    scale2x2
+
+        ; a2 = src, a1 = dest
+        ; preserve d0/d1/a4/a5/a6
+
+COPY1x1 MACRO
+        move.l  a1,a3
+        move.l  cwidth(pc),d4
+        lsr.l   #2,d4
+.\@
+        move.l  (a2)+,(a3)+
+        subq.w  #1,d4
+        bne     .\@
+        add.l   d1,a1
+        ENDM
+
+COPY2x1 MACRO
+        move.l  a1,a3
+        move.l  cwidth(pc),d4
+        lsr.l   #2,d4
+        move.l  #$00ff00ff,d7
+.\@
+        move.l  (a2)+,d6        ; d6 = ABCD
+        move.l  d6,d2           ; d2 = ABCD
+        and.l   d7,d2           ; d2 = .B.D
+        eor.l   d2,d6           ; d6 = A.C.
+        move.l  d6,d5           ; d5 = A.C.
+        lsr.l   #8,d5           ; d5 = .A.C
+        or.l    d5,d6           ; d6 = AACC
+        move.l  d2,d5           ; d5 = .B.D
+        lsl.l   #8,d5           ; d5 = B.D.
+        or.l    d5,d2           ; d2 = BBDD
+        swap    d2              ; d2 = DDBB
+        eor.w   d2,d6           ; d6.w = C^B
+        eor.w   d6,d2           ; d2.w = C^B^B = C
+        eor.w   d2,d6           ; d6.w = C^B^C = B
+        swap    d2              ; d2 = CCDD
+        move.l  d6,(a3)+
+        move.l  d2,(a3)+
+
+        subq.w  #1,d4
+        bne     .\@
+        add.l   d1,a1
+        ENDM
+
+
+scale1x1:
+        move.l  cheight(pc),d3
+.y
+        COPY1x1
+        subq.w  #1,d3
+        bne     .y
+        rts
+
+scale2x1:
+        move.l  cheight(pc),d3
+.y
+        COPY2x1
+        subq.w  #1,d3
+        bne     .y
+        rts
+
+scale1x2:
+        move.l  cheight(pc),d3
+.y
+        move.l  a2,a0
+        COPY1x1
+        move.l  a0,a2
+        COPY1x1
+        subq.w  #1,d3
+        bne     .y
+        rts
+
+scale2x2:
+        move.l  cheight(pc),d3
+.y
+        move.l  a2,a0
+        COPY2x1
+        move.l  a0,a2
+        COPY2x1
+        subq.w  #1,d3
+        bne     .y
+        rts
 
                 cnop    0,4
 ; Keep in order of arguments for c2p routine
@@ -153,6 +235,7 @@ syofs           ds.l    1
 chunky          ds.l    1
 c2pfunc         ds.l    1
 
+scalemode       ds.l 1
 bmBytesPerRow   ds.l 1
 bmData          ds.l 1
 lbmtags:
