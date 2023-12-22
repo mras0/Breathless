@@ -257,7 +257,7 @@ ErrorQuit
 ;********************************************************************
 
 OpenAll
-
+                sub.l   #bm_SIZEOF,sp
 ; Open output screen
 
 		bsr	OpenAgaScreen
@@ -283,9 +283,26 @@ OAopenscrok
 
 ; Get hardware sprites
 
+; Make dummy bitmap for sprite intialization
+; init dummy bitmap with dummy data from panel_bitmap
+; Which is never a RTG one
+
+                move.l  sp,a0
+                moveq   #8,d0   ; Depth
+                moveq   #16,d1  ; Width
+                move.w  #SCREEN_HEIGHT,d2 ; Height
+                GFXBASE
+                CALLSYS InitBitMap
+
+                move.l  panel_bitmap(a5),a0
+                move.l  bm_Planes(a0),d0
+                rept 8
+                move.l  d0,bm_Planes+REPTN*4(sp)
+                endr
+
 			;*** Alloca sprite mouse pointer
 		GFXBASE
-		move.l	screen_bitmap1(a5),a2
+		move.l	sp,a2
 		lea	spritetaglist0,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,Sprites(a5)
@@ -294,15 +311,12 @@ OAopenscrok
 		bsr	TurnOffMousePointer
 
 
-                ; panel_bitmap is used to initialize the sprites
-                ; just needs to be a blank non-RTG bitmap..
-
 			;*** Alloca sprites per sprite screen
 		GFXBASE
 		lea	Sprites(a5),a3
 		moveq	#8,d6			;Posizione x degli sprite
 		moveq	#6,d7
-OAspritesloop1	move.l	panel_bitmap(a5),a2
+OAspritesloop1	move.l	sp,a2
 		lea	spritetaglist1,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,(a3,d7.w*4)
@@ -328,7 +342,7 @@ OAspritesloop1	move.l	panel_bitmap(a5),a2
 		GFXBASE
 		lea	Sprites(a5),a3
 		moveq	#4,d7
-OAspritesloop2	move.l	panel_bitmap(a5),a2
+OAspritesloop2	move.l	sp,a2
 		lea	spritetaglist2,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,(a3,d7.w*4)
@@ -363,7 +377,7 @@ OAspritesloop2	move.l	panel_bitmap(a5),a2
 		moveq	#7,d7
 OAspritesloop3	tst.l	(a3)+
 		beq.s	OAsprnext
-		move.l	panel_bitmap(a5),a2
+		move.l	sp,a2
 		lea	spritetaglist0,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,(a4)
@@ -453,10 +467,11 @@ OAsprnext	addq.w	#4,a4
 		tst.l	d0				; error?
 		bne	OAerror
 
-
+                add.l   #bm_SIZEOF,sp
 		moveq	#0,d0
 		rts
 OAerror
+                add.l   #bm_SIZEOF,sp
 		moveq	#1,d0
 		rts
 
@@ -1232,7 +1247,7 @@ ChannelMask	dc.b	15
 screentaglist:
 ; list of attributes for the screen that we want to open
 		dc.l	SA_Left,0
-		dc.l	SA_Width,SCREEN_WIDTH,SA_Height,SCREEN_HEIGHT+1,SA_Depth,SCREEN_DEPTH
+		dc.l	SA_Width,SCREEN_WIDTH,SA_Height,SCREEN_HEIGHT,SA_Depth,SCREEN_DEPTH
 		dc.l	SA_Quiet,-1			; prevent gadgets, titlebar from appearing.
 		dc.l	SA_Type,CUSTOMSCREEN
 did_tag1:	dc.l	SA_DisplayID,PAL_MONITOR_ID
