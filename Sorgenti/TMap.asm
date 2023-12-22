@@ -44,7 +44,7 @@
 
 		xref	LoadPalette,Rnd
 
-                xref    RTGChooseMode
+                xref    RTGInit,RTGCleanup,RTGChooseMode
 
 ;* Inizio del programma ********************************
 
@@ -294,12 +294,15 @@ OAopenscrok
 		bsr	TurnOffMousePointer
 
 
+                ; panel_bitmap is used to initialize the sprites
+                ; just needs to be a blank non-RTG bitmap..
+
 			;*** Alloca sprites per sprite screen
 		GFXBASE
 		lea	Sprites(a5),a3
 		moveq	#8,d6			;Posizione x degli sprite
 		moveq	#6,d7
-OAspritesloop1	move.l	screen_bitmap1(a5),a2
+OAspritesloop1	move.l	panel_bitmap(a5),a2
 		lea	spritetaglist1,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,(a3,d7.w*4)
@@ -325,7 +328,7 @@ OAspritesloop1	move.l	screen_bitmap1(a5),a2
 		GFXBASE
 		lea	Sprites(a5),a3
 		moveq	#4,d7
-OAspritesloop2	move.l	screen_bitmap1(a5),a2
+OAspritesloop2	move.l	panel_bitmap(a5),a2
 		lea	spritetaglist2,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,(a3,d7.w*4)
@@ -360,13 +363,17 @@ OAspritesloop2	move.l	screen_bitmap1(a5),a2
 		moveq	#7,d7
 OAspritesloop3	tst.l	(a3)+
 		beq.s	OAsprnext
-		move.l	screen_bitmap1(a5),a2
+		move.l	panel_bitmap(a5),a2
 		lea	spritetaglist0,a1
 		CALLSYS	AllocSpriteDataA	;Alloca memoria per lo sprite
 		move.l	d0,(a4)
 		beq	OAerror
 OAsprnext	addq.w	#4,a4
 		dbra	d7,OAspritesloop3
+
+
+                ; Sprites are enabled
+                st.b    SpriteFlag(a5)
 
 
     IFEQ 1	;*** !!!PROTEZIONE!!!
@@ -636,8 +643,14 @@ PanelPtrLoop	move.l	(a0)+,(a1)+
                 tst.b   RTGFlag
                 beq     .AGA
                 tst.l   cgxbase(a5)
-                bne     .AfterCL
+                bne     .CGXOK
                 move.l  #ErrMsgCgx,ErrorMessage(a5)
+                bra     ErrorQuit
+.CGXOK:
+                jsr     RTGInit
+                tst.l   d0
+                beq     .AfterCL
+                move.l  #ErrMsgRTGInit,ErrorMessage(a5)
                 bra     ErrorQuit
 
 .AGA
@@ -1070,16 +1083,6 @@ CRnspritenext	dbra	d7,CRnspritesloop
 
 ;***************************************************************************
 
-FREEBITMAP      MACRO
-		move.l	\1,d0
-		beq.s	.\@
-                clr.l   \1
-		move.l	d0,a0
-		GFXBASE
-		CALLSYS	FreeBitMap
-.\@
-                ENDM
-
 CloseAgaScreen
 
 	;* Installa user copper list 1 e libera la memoria da essa allocata
@@ -1121,10 +1124,10 @@ CASnovport	move.l	TMapScreen(a5),d0
 		clr.l	TMapScreen(a5)
 CASnoscreen
 
-                ;FREEBITMAP screen_bitmap1(a5)  ; Taken from the screen
-                FREEBITMAP screen_bitmap2(a5)
-                FREEBITMAP screen_bitmap3(a5)
-                FREEBITMAP panel_bitmap(a5)
+                ;FREEBITMAP screen_bitmap1      ; Taken from the screen
+                FREEBITMAP screen_bitmap2
+                FREEBITMAP screen_bitmap3
+                FREEBITMAP panel_bitmap
 
 		move.l	myDBufInfo(a5),d0
 		beq.s	CASnodbufinfo
@@ -1145,6 +1148,11 @@ CASnosafeport
 		EXECBASE
 		CALLSYS	DeleteMsgPort
 CASnodispport
+
+                tst.b   RTGFlag(a5)
+                beq     .NoRTG
+                jsr     RTGCleanup
+.NoRTG
 
 		jsr	Free_Signals
 
@@ -1315,6 +1323,7 @@ ErrMsgScreen    ERRMSG  "Failed to open screen"
 ErrMsgLoad      ERRMSG  "Failed to load data"
 ErrMsgUnknown   ERRMSG  "Unknown error occured"
 ErrMsgCgx       ERRMSG  "cybergraphics.library required for RTG"
+ErrMsgRTGInit   ERRMSG  "Failed to initialize RTG"
 
                 even
 ;***************************************************************************
@@ -1449,8 +1458,9 @@ ResetMousePos	ds.b	1	;Se=TRUE, comunica all'input handler di
 
 		ds.b	1	;Usato per allineare
 
-                xdef    RTGFlag
+                xdef    RTGFlag,SpriteFlag
 RTGFlag         ds.b    1
+SpriteFlag      ds.b    1
 
 		cnop	0,4
 

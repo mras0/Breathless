@@ -84,6 +84,8 @@ Tloop
 		GFXBASE
 		CALLSYS	WaitTOF
 
+                UPDATE_TERMINAL
+
 		tst.w	joyup(a5)
 		bne.s	Tkeyup
 		tst.w	joydown(a5)
@@ -174,6 +176,14 @@ Tnoconf
 		beq.s	Tloncp			; Se no, salta
 		clr.w	pause(a5)
 Tloncp
+                ; Make sure delayed console is cleared
+                tst.b   RTGFlag(a5)
+                beq     .NoRTG
+.WaitMsg
+		jsr	CheckEmptySprBuffer
+		bne.s	.WaitMsg
+                UPDATE_TERMINAL
+.NoRTG
 		rts
 
 ;****************************************************************************
@@ -337,6 +347,7 @@ DSCMnortg	cmp.w	d1,d0			;Selezionato quit game ?
 		lea	askquit(pc),a0		;Chiede se si vuole davvero uscire
 		jsr	SprDelayPrint
 DSCMmptqg	jsr	TestChangeScreen
+                UPDATE_TERMINAL
 		jsr	ReadKey			;Legge un tasto dalla tastiera
 		ext.w	d0
 		tst.w	d0
@@ -789,6 +800,11 @@ CTACend
 		xdef	InitTerminal
 
 InitTerminal	movem.l	d0-d2/a0-a1/a4/a6,-(sp)
+
+                tst.b   RTGFlag(a5)
+                beq     .NoRTG
+                bsr     RTGInitTerminal
+.NoRTG
 
 		lea	term_page0(pc),a1
 

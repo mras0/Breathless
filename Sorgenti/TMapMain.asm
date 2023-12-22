@@ -107,6 +107,7 @@
 	xref	ResetMoveVars
 	xref	CopyToActualConfig
         xref    RTGFlag
+        xref    SpriteFlag
 
 
 ;************************************************************
@@ -2013,6 +2014,7 @@ ISnext		dbra	d6,ISloop1
 		xdef	TurnOffSprites
 TurnOffSprites
 		movem.l	d0-d7/a0-a6,-(sp)
+                sf.b    SpriteFlag(a5)
 		GFXBASE
 		jsr	TurnOffMousePointer
 		lea	Sprites+4(a5),a4
@@ -2036,6 +2038,7 @@ TOFspriteout
 		xdef	TurnOnSprites
 TurnOnSprites
 		movem.l	d0-d7/a0-a6,-(sp)
+                st.b    SpriteFlag(a5)
 		GFXBASE
 		jsr	TurnOffMousePointer
 		lea	Sprites+4(a5),a4

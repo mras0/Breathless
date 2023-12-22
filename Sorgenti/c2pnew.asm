@@ -100,7 +100,6 @@ rtg:
         jsr     RTGLock
         tst.l   d0
         beq     .out
-        ; Preserve d0! for unlock
 
         move.l  bmData(a5),a1
         move.l  bmBytesPerRow(a5),d1

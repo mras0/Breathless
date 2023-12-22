@@ -1,14 +1,22 @@
                 include 'System'
                 include 'TMap.i'
 
+                xdef RTGInit
+                xdef RTGCleanup
                 xdef RTGLock
                 xdef RTGUnlock
                 xdef RTGShowPic
                 xdef RTGChooseMode
+                xdef RTGInitTerminal
+                xdef RTGUpdateTermainal
 
                 xdef bmBytesPerRow
                 xdef bmData
 
+                xref SpriteFlag
+                xref Sprites
+                xref screen_viewport
+                xref screen_bitmap1
 ;
 ; Parameters for LockBitMapTagList()
 ;
@@ -46,6 +54,25 @@ _LVOCModeRequestTagList EQU     -66     ; ULONG CModeRequestTagList(APTR ModeReq
 _LVOLockBitMapTagList   EQU     -168    ; APTR LockBitMapTagList(APTR BitMap, struct TagItem * TagList) (a0,a1)
 _LVOUnLockBitMap        EQU     -174    ; void UnLockBitMap(APTR Handle) (a0)
 
+RTGInit:
+		move.l	#SCREEN_WIDTH,d0
+		move.l	#SCREEN_HEIGHT,d1
+		move.l	#SCREEN_DEPTH,d2
+                moveq   #0,d3
+                move.l  screen_bitmap1(a5),a0
+		CALLSYS	AllocBitMap
+		move.l	d0,backup_bitmap(a5)
+		beq	.error
+.ok
+                moveq   #0,d0
+                rts
+.error
+                moveq   #-1,d0
+                rts
+
+RTGCleanup:
+                FREEBITMAP backup_bitmap
+                rts
 
 ; a0 = bitmap
 RTGLock:
@@ -67,6 +94,12 @@ lbmtags:
 RTGUnlock:
                 move.l  bmLock(a5),d0
                 beq     .out
+                tst.b   SpriteFlag(a5)
+                beq     .nosprites
+                move.l  d0,-(sp)
+                bsr     RTGDrawSprites
+                movem.l (sp)+,d0
+.nosprites:
                 clr.l   bmLock(a5)
                 move.l  d0,a0
                 move.l  cgxbase(a5),a6
@@ -151,8 +184,175 @@ modetitle:
                 dc.b    'Choose RTG mode (cancel for AGA)',0
                 EVEN
 
+; The temrinal is made using sprites 6+7, each 4 colors and 64-bit wide
+; The cross hair is made up of sprites 4+5 attached, 16 colors and 64-bit wide
+; The base color registers are set both to 48
+
+
+;       dc.w  sprpos, 0, 0, 0, sprctl, 0, 0, 0
+;       dc.l  bpl1left, bpl1right, bpl2left, bpl2right
+SPRLONG4        MACRO
+                move.l  (a0)+,d0
+                move.l  4(a0),d1
+                moveq   #32-1,d6
+                ; Skip if completely transparent
+                move.l  d0,d2
+                or.l    d1,d2
+                bne     .x\@
+                add.w   #32,a3
+                bra     .out\@
+.x\@
+                moveq   #0,d2
+                add.l   d1,d1
+                addx.b  d2,d2
+                add.l   d0,d0
+                addx.b  d2,d2   ; Z only cleared if result is non-zero
+                tst.b   d2
+                beq     .next\@
+                add.b   #48+12,d2       ; Hardcoded for sprites 6/7 w/ base=48
+                move.b  d2,(a3)
+
+.next\@         addq.w  #1,a3
+                dbf     d6,.x\@
+.out\@
+                ENDM
+
+Do4ColSprite:
+                move.w  ss_height(a0),d7
+                cmp.w   #1,d7
+                bls     .out
+                move.l  bmData(a5),a4
+                add.w   ss_x(a0),a4
+                move.l  bmBytesPerRow(a5),d0
+                mulu.w  ss_y(a0),d0
+                add.l   d0,a4
+                move.l  ss_posctldata(a0),a0
+                lea     16(a0),a0               ; Skip pos/control
+.y:
+                move.l  a4,a3
+                SPRLONG4
+                SPRLONG4
+                addq.w  #8,a0   ; To next row
+                add.l   bmBytesPerRow(a5),a4
+                subq.w  #1,d7
+                bne     .y
+.out:
+                rts
+
+SPRLONG16       MACRO
+                move.l  (a0)+,d0
+                move.l  4(a0),d1
+                move.l  (a1)+,d2
+                move.l  4(a1),d3
+                moveq   #32-1,d6
+                ; Skip if completely transparent
+                move.l  d0,d4
+                or.l    d1,d4
+                or.l    d2,d4
+                or.l    d3,d4
+                bne     .x\@
+                add.w   #32,a3
+                bra     .out\@
+.x\@
+                moveq   #0,d4
+                add.l   d3,d3
+                addx.b  d4,d4
+                add.l   d2,d2
+                addx.b  d4,d4
+                add.l   d1,d1
+                addx.b  d4,d4
+                add.l   d0,d0
+                addx.b  d4,d4
+                tst.b   d4
+                beq     .next\@
+                add.b   #48,d4
+                move.b  d4,(a3)
+
+.next\@         addq.w  #1,a3
+                dbf     d6,.x\@
+.out\@
+                ENDM
+
+RTGDrawSprites:
+                movem.l d2-d7/a2-a4,-(sp)
+
+                move.l  Sprites+6*4(a5),a0
+                bsr     Do4ColSprite
+                move.l  Sprites+7*4(a5),a0
+                bsr     Do4ColSprite
+
+                ; 16-color sprite
+                move.l  Sprites+4*4(a5),a0
+                move.w  ss_height(a0),d7
+                cmp.w   #1,d7
+                bls     .out
+
+                move.l  bmData(a5),a4
+                add.w   ss_x(a0),a4
+                move.l  bmBytesPerRow(a5),d0
+                mulu.w  ss_y(a0),d0
+                add.l   d0,a4
+                move.l  ss_posctldata(a0),a0
+                lea     16(a0),a0               ; Skip pos/control
+
+                ; Get attached sprite
+                move.l  Sprites+5*4(a5),a1
+                move.l  ss_posctldata(a1),a1
+                lea     16(a1),a1               ; skip pos/control
+.y:
+                move.l  a4,a3
+                SPRLONG16
+                SPRLONG16
+                addq.w  #8,a0   ; To next row
+                addq.w  #8,a1   ; To next row
+                add.l   bmBytesPerRow(a5),a4
+                subq.w  #1,d7
+                bne     .y
+.out:
+                movem.l (sp)+,d2-d7/a2-a4
+                rts
+
+; a0=src, a1=dest
+CopyScreenBitmap:
+                movem.l d2-d7/a2/a6,-(sp)
+                moveq   #0,d0                   ; SrcX
+                moveq   #0,d1                   ; SrcY
+                moveq   #0,d2                   ; DstX
+                moveq   #0,d3                   ; DstY
+                move.w  #SCREEN_WIDTH,d4        ; SizeX
+                move.w  #SCREEN_HEIGHT,d5       ; SizeY
+                move.w  #$C0,d6                 ; Minterm
+                moveq   #-1,d7                  ; Mask
+                sub.l   a2,a2                   ; TempA
+                GFXBASE
+                jsr     _LVOBltBitMap(a6)
+                movem.l (sp)+,d2-d7/a2/a6
+                rts
+
+RTGInitTerminal:
+		move.l	screen_viewport(a5),a0
+                move.l  vp_RasInfo(a0),a0
+                move.l  ri_BitMap(a0),a0
+                move.l  backup_bitmap(a5),a1
+                bra     CopyScreenBitmap
+
+RTGUpdateTermainal:
+                move.l  a2,-(sp)
+		move.l	screen_viewport(a5),a1
+                move.l  vp_RasInfo(a1),a1
+                move.l  ri_BitMap(a1),a1
+                move.l  a1,a2
+                move.l  backup_bitmap(a5),a0
+                bsr     CopyScreenBitmap
+                move.l  a2,a0
+                bsr     RTGLock
+                bsr     RTGUnlock
+                move.l  (sp)+,a2
+                rts
+
 
 	        section	__MERGED,bss
 bmLock          ds.l 1
 bmBytesPerRow   ds.l 1
 bmData          ds.l 1
+backup_bitmap   ds.l 1

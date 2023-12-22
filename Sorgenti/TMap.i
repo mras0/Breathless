@@ -229,6 +229,16 @@ CLOSELIB	MACRO	lbase
 already_closed\@:
 		ENDM
 
+FREEBITMAP      MACRO
+		move.l	\1(a5),d0
+		beq.s	.\@
+                clr.l   \1(a5)
+		move.l	d0,a0
+		GFXBASE
+		CALLSYS	FreeBitMap
+.\@
+                ENDM
+
 ; Alloca len byte di memoria di tipo type e ne scrive il puntatore in var(a5)
 ALLOCMEMORY	MACRO	len,type,var
 		move.l	\1,d0
@@ -356,6 +366,20 @@ UAECMD  MACRO
 
 UAE_ENTER_DEBUGGER MACRO
         UAECMD 'AKS_ENTERDEBUGGER 1'
+        ENDM
+
+        xref RTGFlag
+        xref RTGUpdateTermainal
+        xref RTG
+UPDATE_TERMINAL  MACRO
+        move.l  a6,-(sp)
+        GFXBASE
+        CALLSYS	WaitTOF
+        move.l  (sp)+,a6
+        tst.b   RTGFlag(a5)
+        beq     .NoRTG\@
+        jsr     RTGUpdateTermainal
+.NoRTG\@
         ENDM
 
 
