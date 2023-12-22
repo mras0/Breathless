@@ -108,6 +108,7 @@
 	xref	CopyToActualConfig
         xref    RTGFlag
         xref    SpriteFlag
+        xref    NeedPanelUpdate
 
 
 ;************************************************************

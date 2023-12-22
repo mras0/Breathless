@@ -53,7 +53,7 @@ c2p8_init::
 .aga
         move.l  a1,d0
         and.l   #3,d0
-        move.l  d0,scalemode
+        move.l  d0,scalemode(a5)
         move.l  (a0,d0.w*4),c2pfunc
         rts
 .c2pfuncs:
@@ -110,11 +110,16 @@ rtg:
         add.l   d2,a1
 
 
-        move.l  scalemode(pc),d3
+        move.l  scalemode(a5),d3
         move.l  .scale(pc,d3.l*4),a3
         jsr     (a3)
 
         jsr     RTGUnlock
+
+        move.w  NeedPanelUpdate(a5),d0
+        beq     .out
+        subq.w  #1,d0
+        move.w  d0,NeedPanelUpdate(a5)
 
         ; Panel
 
@@ -232,4 +237,7 @@ syofs           ds.l    1
 chunky          ds.l    1
 c2pfunc         ds.l    1
 
+	section	__MERGED,BSS
+                xdef NeedPanelUpdate
 scalemode       ds.l 1
+NeedPanelUpdate ds.w 1

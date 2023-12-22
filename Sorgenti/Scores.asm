@@ -318,6 +318,7 @@ ISnoplayagain
 ;* nel pannello dei punteggi
 
 		xdef	PanelRefresh
+                xref    NeedPanelUpdate
 PanelRefresh	movem.l	d0-d4/d7/a0-a3,-(sp)
 
 		clr.l	d2
@@ -434,13 +435,25 @@ PRnoweapon	addq.w	#1,d7
 		cmp.w	#6,d7
 		blt.s	PRweaponloop
 
+
+		lea	PlayerHealthFL(a5),a0
+                moveq   #0,d0
+		or.l	(a0)+,d0
+		or.l	(a0)+,d0
+		or.l	(a0)+,d0
+		or.l	(a0)+,d0
+		or.b	(a0)+,d0
+                tst.l   d0
+                beq     .out
+                move.w  #4,NeedPanelUpdate(a5)
+
 		lea	PlayerHealthFL(a5),a0
 		clr.l	(a0)+
 		clr.l	(a0)+
 		clr.l	(a0)+
 		clr.l	(a0)+
 		clr.b	(a0)+
-
+.out
 		movem.l	(sp)+,d0-d4/d7/a0-a3
 		rts
 
