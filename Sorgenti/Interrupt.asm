@@ -26,6 +26,7 @@
 		xref	DoMovement,SprIRQPrint
 		xref	AudioIRQ0,AudioIRQ1,AudioIRQ2,AudioIRQ3
 		xref	SoundFXServer
+                xref    TimerIO
 
 ;***********************************************************************
 ;*** Inizializza interrupt
@@ -125,7 +126,34 @@ StopIRQ
 VBinterrupt	movem.l	d2-d7/a2-a6,-(sp)
 
 		move.l	a1,a5
+                tst.b   RTGFlag(a5)
+                beq     .NoRTG
 
+                ; Limit update frequency to 50Hz
+                subq.l  #8,sp
+                move.l  sp,a0
+		move.l	TimerIO+IO_DEVICE(a5),a6
+		CALLSYS	ReadEClock
+                movem.l (sp)+,d1/d2     ; d1=high/d2=low
+                movem.l nextvbtick(a5),d3/d4
+                move.l  d3,d5
+                or.l    d4,d5
+                bne     .notfirst
+                move.l  d1,d3
+                move.l  d2,d4
+                add.l   #25,d0  ; Rounding
+                divu.l  #50,d0
+                move.l  d0,vbtickinterval(a5)
+.notfirst:
+                ; d1:d2 now, d3:d4 next
+                sub.l   d4,d2
+                subx.l  d3,d1
+                bcs     VBout   ; now-next < 0?
+                moveq   #0,d0
+                add.l   vbtickinterval(a5),d4
+                addx.l  d0,d3
+                movem.l d3/d4,nextvbtick(a5)
+.NoRTG
 		tst.b	ProgramState(a5)
 		beq.s	VBpresentation
 
@@ -211,3 +239,6 @@ oldaudioirq0	ds.l	1
 oldaudioirq1	ds.l	1
 oldaudioirq2	ds.l	1
 oldaudioirq3	ds.l	1
+
+nextvbtick      ds.l    2
+vbtickinterval  ds.l    1

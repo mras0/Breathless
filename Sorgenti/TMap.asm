@@ -1420,7 +1420,7 @@ nullbytes	ds.l	1
 	xdef	screen_bitmap1,screen_bitmap2,screen_bitmap3,screen_viewport
 	xdef	myDBufInfo,myCopList1,myCopList2,Sprites,NullSprites
 	xdef	PanelBitplanes,screen_rport,myInputEvent
-        xdef    panel_bitmap
+        xdef    panel_bitmap,TimerIO
 
 IntuitionView	ds.l	1
 TMapScreen	ds.l	1
