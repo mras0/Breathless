@@ -801,11 +801,6 @@ CTACend
 
 InitTerminal	movem.l	d0-d2/a0-a1/a4/a6,-(sp)
 
-                tst.b   RTGFlag(a5)
-                beq     .NoRTG
-                bsr     RTGInitTerminal
-.NoRTG
-
 		lea	term_page0(pc),a1
 
 		bsr	InitConfigVars		;Inizializza variabili configurazione
@@ -841,6 +836,14 @@ ITj1
 		move.l	a1,(a0)			;Scrive pun. al menu di configurazione
 
 ITnoconf
+                ; Backup after sprites have (potentially) been moved
+                tst.b   RTGFlag(a5)
+                beq     .NoRTG
+                movem.l d0-d1/a0-a1,-(sp)
+                bsr     RTGInitTerminal
+                movem.l (sp)+,d0-d1/a0-a1
+.NoRTG
+
 		bsr	PrintTerminalPage
 
 		movem.l	(sp)+,d0-d2/a0-a1/a4/a6

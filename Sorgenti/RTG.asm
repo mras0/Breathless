@@ -80,7 +80,7 @@ RTGLock:
                 move.l  cgxbase(a5),a6
                 lea     lbmtags(pc),a1
                 move.l  cgxbase(a5),a6
-                jsr     _LVOLockBitMapTagList(a6)
+                CALLSYS LockBitMapTagList
                 move.l  d0,bmLock(a5)
                 move.l  (sp)+,a6
                 rts
@@ -102,9 +102,9 @@ RTGUnlock:
 .nosprites:
                 clr.l   bmLock(a5)
                 move.l  d0,a0
-                move.l  cgxbase(a5),a6
                 move.l  a6,-(sp)
-                jsr     _LVOUnLockBitMap(a6)
+                move.l  cgxbase(a5),a6
+                CALLSYS UnLockBitMap
                 move.l  (sp)+,a6
 .out:
                 rts
@@ -313,19 +313,20 @@ RTGDrawSprites:
                 rts
 
 ; a0=src, a1=dest
-CopyScreenBitmap:
+CopyTerminalPart:
                 movem.l d2-d7/a2/a6,-(sp)
-                moveq   #0,d0                   ; SrcX
-                moveq   #0,d1                   ; SrcY
-                moveq   #0,d2                   ; DstX
-                moveq   #0,d3                   ; DstY
-                move.w  #SCREEN_WIDTH,d4        ; SizeX
-                move.w  #SCREEN_HEIGHT,d5       ; SizeY
+                move.l  Sprites+6*4(a5),a2
+                move.w  ss_x(a2),d0             ; SrcX
+                move.w  ss_y(a2),d1             ; SrcY
+                move.w  d0,d2                   ; DstX
+                move.w  d1,d3                   ; DstY
+                move.w  #128,d4                 ; SizeX
+                move.w  #SPRMON_HEIGHT,d5       ; SizeY
                 move.w  #$C0,d6                 ; Minterm
                 moveq   #-1,d7                  ; Mask
                 sub.l   a2,a2                   ; TempA
                 GFXBASE
-                jsr     _LVOBltBitMap(a6)
+                CALLSYS BltBitMap
                 movem.l (sp)+,d2-d7/a2/a6
                 rts
 
@@ -334,20 +335,24 @@ RTGInitTerminal:
                 move.l  vp_RasInfo(a0),a0
                 move.l  ri_BitMap(a0),a0
                 move.l  backup_bitmap(a5),a1
-                bra     CopyScreenBitmap
+                bra     CopyTerminalPart
+                rts
 
 RTGUpdateTermainal:
-                move.l  a2,-(sp)
-		move.l	screen_viewport(a5),a1
-                move.l  vp_RasInfo(a1),a1
-                move.l  ri_BitMap(a1),a1
-                move.l  a1,a2
+                movem.l a2/a6,-(sp)
+		move.l	screen_viewport(a5),a0
+                GFXBASE
+                CALLSYS WaitBOVP
+		move.l	screen_viewport(a5),a2
+                move.l  vp_RasInfo(a2),a2
+                move.l  ri_BitMap(a2),a2
                 move.l  backup_bitmap(a5),a0
-                bsr     CopyScreenBitmap
+                move.l  a2,a1
+                bsr     CopyTerminalPart
                 move.l  a2,a0
                 bsr     RTGLock
                 bsr     RTGUnlock
-                move.l  (sp)+,a2
+                movem.l (sp)+,a2/a6
                 rts
 
 

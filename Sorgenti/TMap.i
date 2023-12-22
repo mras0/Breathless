@@ -372,10 +372,6 @@ UAE_ENTER_DEBUGGER MACRO
         xref RTGUpdateTermainal
         xref RTG
 UPDATE_TERMINAL  MACRO
-        move.l  a6,-(sp)
-        GFXBASE
-        CALLSYS	WaitTOF
-        move.l  (sp)+,a6
         tst.b   RTGFlag(a5)
         beq     .NoRTG\@
         jsr     RTGUpdateTermainal
